@@ -2,8 +2,15 @@ import type { Coord, ShipClass } from '../types';
 import { isSunk, shipAt, type Board } from '../board';
 import { fireAt, markScan, shotEvents, type GameEvent } from '../resolve';
 import { block3x3, homingLane, line3, sonarArea, type Orientation } from './patterns';
+import { scanCells, type ScanPattern } from './aircraft';
 
-export type WeaponId = 'BB_MISSILE' | 'DD_MISSILE' | 'DE_HOMING' | 'DE_SONAR';
+export type WeaponId =
+	| 'BB_MISSILE'
+	| 'DD_MISSILE'
+	| 'DE_HOMING'
+	| 'DE_SONAR'
+	| 'CV_AIRCRAFT'
+	| 'ANTI_AIR';
 
 export interface WeaponSpec {
 	id: WeaponId;
@@ -13,7 +20,9 @@ export interface WeaponSpec {
 	/** Uses per game; null means unlimited. */
 	ammo: number | null;
 	/** What the player has to aim. */
-	aim: 'centre' | 'line' | 'edge';
+	aim: 'centre' | 'line' | 'edge' | 'sweep';
+	/** Anti-aircraft fire is aimed at your own waters, where enemy planes hover. */
+	ownWaters?: true;
 	blurb: string;
 }
 
@@ -43,6 +52,23 @@ export const WEAPONS: readonly WeaponSpec[] = [
 		blurb: 'Runs from the grid edge until it meets a ship.'
 	},
 	{
+		id: 'CV_AIRCRAFT',
+		ship: 'CV',
+		name: 'Aircraft',
+		ammo: null,
+		aim: 'sweep',
+		blurb: 'Sends a plane over five cells. Each plane strikes once, then only searches.'
+	},
+	{
+		id: 'ANTI_AIR',
+		ship: 'CV',
+		name: 'Anti-aircraft',
+		ammo: null,
+		aim: 'centre',
+		ownWaters: true,
+		blurb: 'Fires into your own waters at an enemy plane you think is overhead.'
+	},
+	{
 		id: 'DE_SONAR',
 		ship: 'DE',
 		name: 'Sonar',
@@ -64,7 +90,14 @@ export function weaponSpec(id: WeaponId): WeaponSpec {
 export type Arsenal = Record<WeaponId, number>;
 
 export function emptyArsenal(): Arsenal {
-	return { BB_MISSILE: 0, DD_MISSILE: 0, DE_HOMING: 0, DE_SONAR: 0 };
+	return {
+		BB_MISSILE: 0,
+		DD_MISSILE: 0,
+		DE_HOMING: 0,
+		DE_SONAR: 0,
+		CV_AIRCRAFT: 0,
+		ANTI_AIR: 0
+	};
 }
 
 /** Rounds left, or Infinity for the sonar. */
@@ -89,6 +122,8 @@ export interface WeaponUse {
 	at: Coord;
 	/** DD and the homing missile pick an axis first. */
 	orientation?: Orientation;
+	/** The aircraft picks a search pattern. */
+	pattern?: ScanPattern;
 }
 
 /**
@@ -98,6 +133,10 @@ export interface WeaponUse {
  */
 export function previewCells(use: WeaponUse, target: Board): Coord[] {
 	switch (use.weapon) {
+		case 'CV_AIRCRAFT':
+			return scanCells(use.at, use.pattern ?? 'PLUS', target.size);
+		case 'ANTI_AIR':
+			return [use.at];
 		case 'BB_MISSILE':
 			return block3x3(use.at, target.size);
 		case 'DD_MISSILE':
@@ -115,12 +154,21 @@ export interface WeaponOutcome {
 	fired: boolean;
 }
 
+/** Weapons whose effect depends on aircraft state, resolved by the caller. */
+export function isCarrierWeapon(id: WeaponId): boolean {
+	return id === 'CV_AIRCRAFT' || id === 'ANTI_AIR';
+}
+
 export function fireWeapon(
 	target: Board,
 	use: WeaponUse,
 	shooter: 'player' | 'cpu',
 	announceSunk = true
 ): WeaponOutcome {
+	if (isCarrierWeapon(use.weapon)) {
+		throw new Error(`${use.weapon} is resolved through the flight state, not fireWeapon`);
+	}
+
 	if (use.weapon === 'DE_SONAR') {
 		const area = sonarArea(use.at, target.size);
 		const detected = area.some((cell) => shipAt(target, cell) !== null);

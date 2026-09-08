@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { WeaponId, WeaponSpec } from '$lib/engine/weapons/index';
 	import type { Orientation } from '$lib/engine/weapons/patterns';
+	import type { Aircraft } from '$lib/engine/weapons/aircraft';
 	import Panel from './Panel.svelte';
 
 	interface Props {
@@ -10,12 +11,26 @@
 		rounds: (id: WeaponId) => number;
 		onArm: (id: WeaponId) => void;
 		onOrientation: () => void;
+		flight: Aircraft[];
+		activePlane: number;
+		onSelectPlane: (index: number) => void;
 	}
 
-	let { weapons, armed, orientation, rounds, onArm, onOrientation }: Props = $props();
+	let {
+		weapons,
+		armed,
+		orientation,
+		rounds,
+		onArm,
+		onOrientation,
+		flight,
+		activePlane,
+		onSelectPlane
+	}: Props = $props();
 
 	const armedSpec = $derived(weapons.find((w) => w.id === armed) ?? null);
 	const needsAxis = $derived(armedSpec?.aim === 'line' || armedSpec?.aim === 'edge');
+	const needsPattern = $derived(armedSpec?.aim === 'sweep');
 </script>
 
 <Panel title="Weapons">
@@ -40,11 +55,36 @@
 				Axis: {orientation === 'H' ? 'Horizontal' : 'Vertical'} — press P to switch
 			</button>
 		{/if}
+
+		{#if needsPattern && flight.length}
+			<ul class="flight">
+				{#each flight as plane, index (plane.id)}
+					<li>
+						<button
+							type="button"
+							class:armed={activePlane === index}
+							onclick={() => onSelectPlane(index)}
+						>
+							<span class="ship">◆{plane.id + 1}</span>
+							<span class="name">{plane.at ? 'aloft' : 'on deck'}</span>
+							<span class="rounds">{plane.armed ? 'strike' : 'search'}</span>
+						</button>
+					</li>
+				{/each}
+			</ul>
+			<button type="button" class="axis" onclick={onOrientation}>
+				Pattern: {orientation === 'H' ? '+' : '✕'} — press P to switch
+			</button>
+		{/if}
 		{#if armedSpec}
 			<p class="hint">
 				{armedSpec.aim === 'edge'
 					? 'Pick a launch cell on the grid edge.'
-					: 'Pick the centre of the strike.'}
+					: armedSpec.aim === 'sweep'
+						? 'Pick where the plane should search over enemy water.'
+						: armedSpec.ownWaters
+							? 'Pick a cell in your own waters where a plane may be overhead.'
+							: 'Pick the centre of the strike.'}
 			</p>
 		{/if}
 	{/if}
@@ -104,6 +144,10 @@
 		padding: 0.1rem 0 0.25rem 0.4rem;
 		font-size: 0.62rem;
 		color: var(--text-dim);
+	}
+
+	.flight {
+		margin-top: 0.4rem;
 	}
 
 	.axis {

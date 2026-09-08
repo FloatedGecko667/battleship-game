@@ -171,7 +171,8 @@
 			label="Enemy waters"
 			cursor={game.phase === 'battle' ? game.cursor : null}
 			pending={game.pending}
-			aim={game.aimPreview}
+			aim={game.armed === 'ANTI_AIR' ? [] : game.aimPreview}
+			aircraft={game.playerFlight.filter((p) => p.alive && p.at).map((p) => p.at!)}
 			onFire={game.phase === 'battle' && game.turn === 'player'
 				? (c) => game.playerFire(c)
 				: undefined}
@@ -185,6 +186,14 @@
 			revealShips={true}
 			label="Your fleet"
 			highlight={game.phase === 'deploy' ? game.playerFleet[game.selected]?.class : null}
+			aircraft={game.playerFlight.filter((p) => p.alive && !p.at).map((p) => p.home)}
+			aim={game.armed === 'ANTI_AIR' ? game.aimPreview : []}
+			onFire={game.armed === 'ANTI_AIR' && game.turn === 'player'
+				? (c) => game.fireOwnWaters(c)
+				: undefined}
+			onHover={(c) => {
+				if (game.armed === 'ANTI_AIR') game.cursor = c;
+			}}
 		/>
 	</div>
 
@@ -199,6 +208,9 @@
 			rounds={(id) => game.roundsFor(id)}
 			onArm={(id) => game.arm(id)}
 			onOrientation={() => game.toggleOrientation()}
+			flight={game.flightReady}
+			activePlane={game.activePlane}
+			onSelectPlane={(i) => game.selectPlane(i)}
 		/>
 		<RulesPanel
 			edition={game.edition}

@@ -23,6 +23,8 @@
 		pending?: readonly Coord[];
 		/** Footprint of the weapon currently being aimed. */
 		aim?: readonly Coord[];
+		/** Aircraft to draw on this board, parked or hovering. */
+		aircraft?: readonly Coord[];
 	}
 
 	let {
@@ -35,11 +37,13 @@
 		label,
 		highlight = null,
 		pending = [],
-		aim = []
+		aim = [],
+		aircraft = []
 	}: Props = $props();
 
 	const pendingKeys = $derived(new Set(pending.map((c) => `${c.row},${c.col}`)));
 	const aimKeys = $derived(new Set(aim.map((c) => `${c.row},${c.col}`)));
+	const planeKeys = $derived(new Set(aircraft.map((c) => `${c.row},${c.col}`)));
 
 	const cols = $derived(board.size.cols);
 	const rows = $derived(board.size.rows);
@@ -115,6 +119,7 @@
 						{#if paint}<span class="hull" class:bow={paint.bow}>{paint.glyph}</span>{/if}
 						{#if mark?.kind === 'miss'}<span class="pin miss">●</span>{/if}
 						{#if mark?.kind === 'scan'}<span class="pin scan">●</span>{/if}
+						{#if planeKeys.has(`${row},${col}`)}<span class="plane">◆</span>{/if}
 						{#if pendingKeys.has(`${row},${col}`)}<span class="queued">◎</span>{/if}
 						{#if mark?.kind === 'hit'}
 							<span class="pin hit">●</span>
@@ -239,6 +244,17 @@
 	/* A called-but-unanswered salvo shot. */
 	.cell.pending {
 		background: color-mix(in srgb, var(--neon) 16%, transparent);
+	}
+
+	/* An aircraft, parked on the carrier or hovering over the water. */
+	.plane {
+		grid-area: 1 / 1;
+		align-self: start;
+		justify-self: end;
+		padding: 1px 2px 0 0;
+		font-size: calc(var(--cell) * 0.36);
+		color: var(--code);
+		text-shadow: 0 0 4px var(--neon-glow);
 	}
 
 	.queued {

@@ -19,12 +19,22 @@ import {
 	fireWeapon,
 	previewCells,
 	roundsLeft,
+	isCarrierWeapon,
 	weaponSpec,
 	type Arsenal,
 	type WeaponId,
 	type WeaponUse
 } from '$lib/engine/weapons/index';
 import type { Orientation } from '$lib/engine/weapons/patterns';
+import {
+	fireAntiAir,
+	flySweep,
+	liveAircraft,
+	loseGroundedAt,
+	newAircraft,
+	type Aircraft,
+	type ScanPattern
+} from '$lib/engine/weapons/aircraft';
 import {
 	DEFAULT_RULES,
 	effectiveRules,
@@ -36,6 +46,7 @@ import {
 } from '$lib/engine/ruleset';
 import { mulberry32, type Rng } from '$lib/engine/rng';
 import { shipSpec } from '$lib/engine/fleet';
+import { cellsOf } from '$lib/engine/geometry';
 import type { Coord, Ship, Side } from '$lib/engine/types';
 import type { LogLine } from '$lib/ui/LogPanel.svelte';
 import { Synth } from '$lib/audio/synth';
@@ -89,6 +100,12 @@ export class Game {
 	/** The weapon the player is aiming, if any. */
 	armed = $state<WeaponId | null>(null);
 	orientation = $state<Orientation>('H');
+	pattern = $state<ScanPattern>('PLUS');
+	/** Own planes, hovering over enemy waters once launched. */
+	playerFlight = $state<Aircraft[]>([]);
+	cpuFlight = $state<Aircraft[]>([]);
+	/** Which own plane the next launch order applies to. */
+	activePlane = $state(0);
 
 	playerFleet = $state<Ship[]>([]);
 	playerBoard = $state<Board>(createBoard(boardSize('CLASSIC'), []));
@@ -158,13 +175,28 @@ export class Game {
 
 	toggleOrientation() {
 		this.orientation = this.orientation === 'H' ? 'V' : 'H';
+		this.pattern = this.pattern === 'PLUS' ? 'X' : 'PLUS';
+	}
+
+	selectPlane(id: number) {
+		this.activePlane = id;
+	}
+
+	/** Planes still able to fly, in slot order. */
+	get flightReady() {
+		return liveAircraft(this.playerFlight);
 	}
 
 	/** Cells the armed weapon would touch if fired at the reticle. */
 	get aimPreview(): Coord[] {
 		if (!this.armed) return [];
 		return previewCells(
-			{ weapon: this.armed, at: this.cursor, orientation: this.orientation },
+			{
+				weapon: this.armed,
+				at: this.cursor,
+				orientation: this.orientation,
+				pattern: this.pattern
+			},
 			this.cpuBoard
 		);
 	}
@@ -187,7 +219,13 @@ export class Game {
 		this.playerFleet = randomFleet(size, this.#rng, placement);
 		this.playerBoard = createBoard(size, this.playerFleet);
 		this.cpuBoard = createBoard(size, randomFleet(size, this.#rng, placement));
+		this.playerFlight = this.#boardFlight(this.playerBoard);
+		this.cpuFlight = this.#boardFlight(this.cpuBoard);
 		this.pending = [];
+		this.playerArsenal = emptyArsenal();
+		this.cpuArsenal = emptyArsenal();
+		this.armed = null;
+		this.activePlane = 0;
 		this.phase = 'deploy';
 		this.turn = 'player';
 		this.winner = null;
@@ -205,6 +243,7 @@ export class Game {
 			noAdjacency: this.effective.noAdjacency
 		});
 		this.playerBoard = createBoard(this.size, this.playerFleet);
+		this.playerFlight = this.#boardFlight(this.playerBoard);
 	}
 
 	rotateSelected() {
@@ -232,11 +271,21 @@ export class Game {
 		this.selected = (this.selected + step + n) % n;
 	}
 
+	/** Parks both planes on the carrier, on its second and fourth cells. */
+	#boardFlight(board: Board): Aircraft[] {
+		const carrier = board.ships.find((ship) => ship.class === 'CV');
+		if (!carrier) return [];
+		const cells = cellsOf(carrier);
+		return [newAircraft(0, cells[1]), newAircraft(1, cells[3])];
+	}
+
 	#replaceSelected(ship: Ship) {
 		const next = [...this.playerFleet];
 		next[this.selected] = ship;
 		this.playerFleet = next;
 		this.playerBoard = createBoard(this.size, next);
+		// Moving the carrier takes its deck - and therefore its planes - with it.
+		this.playerFlight = this.#boardFlight(this.playerBoard);
 	}
 
 	get deploymentValid() {
@@ -271,6 +320,11 @@ export class Game {
 		if (this.phase !== 'battle' || this.turn !== 'player' || !this.armed) return;
 		this.cursor = coord;
 
+		if (isCarrierWeapon(this.armed)) {
+			this.#fireCarrierWeapon(this.armed, coord);
+			return;
+		}
+
 		const use: WeaponUse = { weapon: this.armed, at: coord, orientation: this.orientation };
 		const outcome = fireWeapon(this.cpuBoard, use, 'player', !this.effective.sunkSilence);
 		if (!outcome.fired) {
@@ -281,6 +335,58 @@ export class Game {
 		this.playerArsenal = { ...this.playerArsenal, [this.armed]: this.playerArsenal[this.armed] + 1 };
 		this.armed = null;
 
+		this.#emit(outcome.events);
+		this.cpuBoard = { ...this.cpuBoard };
+		this.#afterPlayerTurn(outcome.events);
+	}
+
+	/** Anti-aircraft fire is aimed at your own waters, so it has its own entry. */
+	fireOwnWaters(coord: Coord) {
+		if (this.phase !== 'battle' || this.turn !== 'player') return;
+		if (this.armed !== 'ANTI_AIR') return;
+		this.#fireCarrierWeapon('ANTI_AIR', coord);
+	}
+
+	#fireCarrierWeapon(weapon: WeaponId, coord: Coord) {
+		if (weapon === 'ANTI_AIR') {
+			const downed = fireAntiAir(this.cpuFlight, coord);
+			this.cpuFlight = [...this.cpuFlight];
+			this.armed = null;
+			this.#say(
+				'player',
+				downed
+					? `Anti-aircraft fire at ${coordLabel(coord.row, coord.col)} — enemy aircraft down`
+					: `Anti-aircraft fire at ${coordLabel(coord.row, coord.col)} — nothing there`
+			);
+			play(this.#synth, downed ? 'shootdown' : 'miss');
+			this.#afterPlayerTurn([]);
+			return;
+		}
+
+		const plane = this.flightReady[this.activePlane];
+		if (!plane) {
+			this.#say('system', 'No aircraft left to fly.');
+			return;
+		}
+
+		const launching = plane.at === null;
+		plane.at = coord;
+		plane.pattern = this.pattern;
+
+		const outcome = flySweep(
+			this.cpuBoard,
+			coord,
+			this.pattern,
+			plane.armed,
+			'player',
+			!this.effective.sunkSilence
+		);
+		if (outcome.spentAmmo) plane.armed = false;
+
+		this.playerFlight = [...this.playerFlight];
+		this.armed = null;
+
+		if (launching) play(this.#synth, 'launch');
 		this.#emit(outcome.events);
 		this.cpuBoard = { ...this.cpuBoard };
 		this.#afterPlayerTurn(outcome.events);
@@ -323,6 +429,7 @@ export class Game {
 	}
 
 	#afterPlayerTurn(events: GameEvent[]) {
+		this.#reapGrounded(events, 'cpu');
 		if (this.#checkVictory('player', this.cpuBoard)) return;
 
 		if (earnsExtraTurn(events, this.effective)) {
@@ -374,6 +481,7 @@ export class Game {
 	}
 
 	#afterCpuTurn(events: GameEvent[]) {
+		this.#reapGrounded(events, 'player');
 		if (this.#checkVictory('cpu', this.playerBoard)) return;
 
 		if (earnsExtraTurn(events, this.effective)) {
@@ -383,6 +491,28 @@ export class Game {
 		}
 
 		this.turn = 'player';
+	}
+
+	/** A plane still on deck is lost when the cell under it is hit. */
+	#reapGrounded(events: readonly GameEvent[], owner: Side) {
+		const flight = owner === 'cpu' ? this.cpuFlight : this.playerFlight;
+		if (!flight.length) return;
+
+		let lost = 0;
+		for (const event of events) {
+			if (event.type !== 'shot' || event.result !== 'hit') continue;
+			lost += loseGroundedAt(flight, event.coord).length;
+		}
+		if (!lost) return;
+
+		if (owner === 'cpu') this.cpuFlight = [...flight];
+		else this.playerFlight = [...flight];
+
+		this.#say(
+			owner === 'cpu' ? 'player' : 'cpu',
+			`${lost} aircraft destroyed on deck`
+		);
+		play(this.#synth, 'shootdown');
 	}
 
 	#checkVictory(shooter: Side, target: Board): boolean {

@@ -77,7 +77,9 @@ describe('availability', () => {
 
 	it('covers every weapon with a spec', () => {
 		expect(WEAPONS.map((w) => w.id).sort()).toEqual([
+			'ANTI_AIR',
 			'BB_MISSILE',
+			'CV_AIRCRAFT',
 			'DD_MISSILE',
 			'DE_HOMING',
 			'DE_SONAR'

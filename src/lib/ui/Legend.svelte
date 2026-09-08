@@ -11,6 +11,7 @@
 		<li><span class="pin scan">●</span> Sonar sweep centre</li>
 		<li><span class="hull ally">▓</span> Your hull</li>
 		<li><span class="hull enemy">▓</span> Enemy hull (revealed on sinking)</li>
+		<li><span class="plane">◆</span> Aircraft — on deck, or hovering once launched</li>
 	</ul>
 </Panel>
 
@@ -69,5 +70,13 @@
 
 	.hull.enemy {
 		color: var(--enemy);
+	}
+
+	.plane {
+		display: inline-grid;
+		place-items: center;
+		width: 1rem;
+		font-size: 0.65rem;
+		color: var(--code);
 	}
 </style>

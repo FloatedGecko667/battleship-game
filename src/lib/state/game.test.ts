@@ -328,10 +328,12 @@ describe('advanced weapons', () => {
 		expect(game.weaponsOnOffer).toHaveLength(0);
 	});
 
-	it('offers all four while the fleet is intact', () => {
+	it('offers the whole arsenal while the fleet is intact', () => {
 		const { game } = deluxeAdvanced();
 		expect(game.weaponsOnOffer.map((w) => w.id).sort()).toEqual([
+			'ANTI_AIR',
 			'BB_MISSILE',
+			'CV_AIRCRAFT',
 			'DD_MISSILE',
 			'DE_HOMING',
 			'DE_SONAR'
@@ -427,3 +429,121 @@ describe('advanced weapons', () => {
 		expect(spent).toBeGreaterThan(0);
 	});
 });
+
+describe('carrier aircraft', () => {
+	function deluxeAdvanced() {
+		const made = makeGame();
+		made.game.reset('DELUXE');
+		made.game.setWeapons('ADVANCED');
+		return made;
+	}
+
+	it('parks two planes on the carrier at deployment', () => {
+		const { game } = deluxeAdvanced();
+		expect(game.playerFlight).toHaveLength(2);
+		expect(game.playerFlight.every((p) => p.at === null && p.armed && p.alive)).toBe(true);
+
+		const carrier = game.playerBoard.ships.find((s) => s.class === 'CV')!;
+		const deck = new Set(cellsOf(carrier).map((c) => `${c.row},${c.col}`));
+		expect(game.playerFlight.every((p) => deck.has(`${p.home.row},${p.home.col}`))).toBe(true);
+	});
+
+	it('keeps the planes on the deck when the carrier is moved', () => {
+		const { game } = deluxeAdvanced();
+		game.selected = game.playerFleet.findIndex((s) => s.class === 'CV');
+		game.rotateSelected();
+
+		const carrier = game.playerBoard.ships.find((s) => s.class === 'CV')!;
+		const deck = new Set(cellsOf(carrier).map((c) => `${c.row},${c.col}`));
+		expect(game.playerFlight.every((p) => deck.has(`${p.home.row},${p.home.col}`))).toBe(true);
+	});
+
+	it('sweeps five cells and spends the strike only when it finds something', () => {
+		const { game } = deluxeAdvanced();
+		game.startBattle();
+		game.arm('CV_AIRCRAFT');
+
+		const carrier = game.cpuBoard.ships.find((s) => s.class === 'CV')!;
+		const middle = cellsOf(carrier)[2];
+		game.playerFire(middle);
+
+		expect(game.playerFlight[0].at).toEqual(middle);
+		expect(game.playerFlight[0].armed).toBe(false);
+		expect(carrier.hits.some(Boolean)).toBe(true);
+	});
+
+	it('only searches once the strike is gone, doing no damage', () => {
+		const { game } = deluxeAdvanced();
+		game.startBattle();
+		game.playerFlight[0].armed = false;
+		game.playerFlight[0].at = { row: 0, col: 0 };
+
+		const carrier = game.cpuBoard.ships.find((s) => s.class === 'CV')!;
+		const before = carrier.hits.filter(Boolean).length;
+
+		game.arm('CV_AIRCRAFT');
+		game.playerFire(cellsOf(carrier)[2]);
+
+		expect(carrier.hits.filter(Boolean).length).toBe(before);
+		expect(game.log.at(-1)?.text).toContain('contact');
+	});
+
+	it('loses a plane still on deck when that cell is hit', () => {
+		const { game } = deluxeAdvanced();
+		game.difficulty = 1;
+		game.startBattle();
+
+		const doomed = game.cpuFlight[0];
+		game.playerFire(doomed.home);
+
+		expect(game.cpuFlight[0].alive).toBe(false);
+		expect(game.log.some((l) => l.text.includes('aircraft destroyed on deck'))).toBe(true);
+	});
+
+	it('spares a plane that has already launched', () => {
+		const { game } = deluxeAdvanced();
+		game.startBattle();
+
+		const plane = game.cpuFlight[0];
+		plane.at = { row: 0, col: 0 };
+		game.playerFire(plane.home);
+
+		expect(game.cpuFlight[0].alive).toBe(true);
+	});
+
+	it('shoots down an enemy plane hovering over your own waters', () => {
+		const { game } = deluxeAdvanced();
+		game.startBattle();
+
+		const spot = { row: 6, col: 6 };
+		game.cpuFlight[0].at = spot;
+		game.arm('ANTI_AIR');
+		game.fireOwnWaters(spot);
+
+		expect(game.cpuFlight[0].alive).toBe(false);
+		expect(game.log.some((l) => l.text.includes('enemy aircraft down'))).toBe(true);
+	});
+
+	it('reports empty sky rather than pretending', () => {
+		const { game } = deluxeAdvanced();
+		game.startBattle();
+		game.cpuFlight[0].at = { row: 6, col: 6 };
+
+		game.arm('ANTI_AIR');
+		game.fireOwnWaters({ row: 1, col: 1 });
+
+		expect(game.cpuFlight.every((p) => p.alive)).toBe(true);
+		expect(game.log.at(-1)?.text).toContain('nothing there');
+	});
+
+	it('withdraws both carrier weapons when the carrier sinks', () => {
+		const { game } = deluxeAdvanced();
+		const cv = game.playerBoard.ships.find((s) => s.class === 'CV')!;
+		for (const cell of cellsOf(cv)) fireAt(game.playerBoard, cell);
+		game.playerBoard = { ...game.playerBoard };
+
+		const ids = game.weaponsOnOffer.map((w) => w.id);
+		expect(ids).not.toContain('CV_AIRCRAFT');
+		expect(ids).not.toContain('ANTI_AIR');
+	});
+})
