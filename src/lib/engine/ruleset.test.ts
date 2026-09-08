@@ -24,7 +24,8 @@ describe('effectiveRules', () => {
 			extraTurnOnScan: false,
 			noAdjacency: false,
 			sunkSilence: true,
-			advancedWeapons: false
+			advancedWeapons: false,
+			mobileFleet: false
 		});
 	});
 

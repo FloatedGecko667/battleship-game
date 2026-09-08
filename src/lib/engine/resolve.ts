@@ -31,15 +31,26 @@ export interface ShotOutcome {
  * victory purposes, but no class is written onto the marks, so a shooter that
  * reads only its marks - the AI included - genuinely cannot tell.
  */
-export function fireAt(target: Board, coord: Coord, announceSunk = true): ShotOutcome {
+export function fireAt(
+	target: Board,
+	coord: Coord,
+	announceSunk = true,
+	turn?: number
+): ShotOutcome {
 	const existing = markAt(target, coord);
 	if (existing && existing.kind !== 'scan') {
-		return { result: existing.kind === 'hit' ? 'hit' : 'miss', repeat: true };
+		// Pass `turn` and a miss is only the last word until something sails in;
+		// a hit still is, because damaged ships are held in place.
+		const stale = turn !== undefined && existing.kind === 'miss';
+		if (!stale) return { result: existing.kind === 'hit' ? 'hit' : 'miss', repeat: true };
 	}
 
 	const hit = shipAt(target, coord);
 	if (!hit) {
-		target.marks[cellIndex(coord, target.size)] = { kind: 'miss' };
+		target.marks[cellIndex(coord, target.size)] = {
+			kind: 'miss',
+			...(turn !== undefined ? { turn } : {})
+		};
 		return { result: 'miss', repeat: false };
 	}
 

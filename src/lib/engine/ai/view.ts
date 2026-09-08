@@ -10,10 +10,23 @@ import { FLEET } from '../fleet';
 export interface TargetView {
 	size: BoardSize;
 	marks: readonly (Mark | null)[];
+	/**
+	 * Set under MOBILE FLEET. A miss older than STALE_AFTER turns is no longer
+	 * evidence the cell is empty, because a hull could have sailed into it.
+	 */
+	turn?: number;
 }
 
-export function viewOf(board: Board): TargetView {
-	return { size: board.size, marks: board.marks };
+/** One ship moves one cell per turn, so a miss survives about this long. */
+export const STALE_AFTER = 3;
+
+export function isStaleMiss(mark: Mark, turn: number | undefined): boolean {
+	if (turn === undefined || mark.kind !== 'miss' || mark.turn === undefined) return false;
+	return turn - mark.turn > STALE_AFTER;
+}
+
+export function viewOf(board: Board, turn?: number): TargetView {
+	return { size: board.size, marks: board.marks, ...(turn !== undefined ? { turn } : {}) };
 }
 
 /**

@@ -13,13 +13,16 @@ export interface HouseRules {
 	salvo: boolean;
 	/** Sinking a ship is not announced. */
 	sunkSilence: boolean;
+	/** One undamaged ship may get under way each turn. */
+	mobileFleet: boolean;
 }
 
 export const NO_HOUSE_RULES: HouseRules = {
 	bonusTurn: false,
 	noAdjacency: false,
 	salvo: false,
-	sunkSilence: false
+	sunkSilence: false,
+	mobileFleet: false
 };
 
 /** DELUXE lets a turn spend a ship's special weapon instead of a plain shot. */
@@ -56,6 +59,8 @@ export interface EffectiveRules {
 	sunkSilence: boolean;
 	/** Special weapons are on the table. DELUXE only. */
 	advancedWeapons: boolean;
+	/** Ships may move, so a miss stops being permanent. */
+	mobileFleet: boolean;
 }
 
 /**
@@ -71,7 +76,8 @@ export function effectiveRules(rules: RuleSet): EffectiveRules {
 			extraTurnOnScan: rules.gameType === 'MULTI_ATTACK',
 			noAdjacency: rules.house.noAdjacency,
 			sunkSilence: false,
-			advancedWeapons: rules.weapons === 'ADVANCED'
+			advancedWeapons: rules.weapons === 'ADVANCED',
+			mobileFleet: rules.house.mobileFleet
 		};
 	}
 
@@ -82,7 +88,8 @@ export function effectiveRules(rules: RuleSet): EffectiveRules {
 		noAdjacency: rules.house.noAdjacency,
 		sunkSilence: rules.house.sunkSilence,
 		// The special weapons come from the tie-in unit, so CLASSIC never has them.
-		advancedWeapons: false
+		advancedWeapons: false,
+		mobileFleet: rules.house.mobileFleet
 	};
 }
 
@@ -101,12 +108,14 @@ export const HOUSE_RULE_NAME: Record<keyof HouseRules, string> = {
 	bonusTurn: 'Bonus turn',
 	noAdjacency: 'No adjacency',
 	salvo: 'Salvo',
-	sunkSilence: 'Sunk silence'
+	sunkSilence: 'Sunk silence',
+	mobileFleet: 'Mobile fleet'
 };
 
 export const HOUSE_RULE_BLURB: Record<keyof HouseRules, string> = {
 	bonusTurn: 'A hit earns another shot.',
 	noAdjacency: 'Ships may not touch, not even diagonally.',
 	salvo: 'Fire once per surviving ship.',
-	sunkSilence: 'Sinkings are never announced.'
+	sunkSilence: 'Sinkings are never announced.',
+	mobileFleet: 'Once a turn, move one undamaged ship a cell along its axis. A miss goes stale.'
 };

@@ -47,6 +47,12 @@ import {
 import { mulberry32, type Rng } from '$lib/engine/rng';
 import { shipSpec } from '$lib/engine/fleet';
 import { cellsOf } from '$lib/engine/geometry';
+import {
+	moveShip,
+	previewMove,
+	shipsUnderWay,
+	type Heading
+} from '$lib/engine/movement';
 import { FORMATIONS, type FormationId } from '$lib/data/formations';
 import {
 	boardSnapshot,
@@ -57,7 +63,7 @@ import {
 	SNAPSHOT_VERSION,
 	type Snapshot
 } from '$lib/engine/persist';
-import type { Coord, Ship, Side } from '$lib/engine/types';
+import type { Coord, Ship, ShipClass, Side } from '$lib/engine/types';
 import type { LogLine } from '$lib/ui/LogPanel.svelte';
 import { Synth } from '$lib/audio/synth';
 import { play, soundFor } from '$lib/audio/sounds';
@@ -118,6 +124,10 @@ export class Game {
 	activePlane = $state(0);
 	/** Set while the fleet came from a rulebook formation rather than by hand. */
 	presetId = $state<FormationId | null>(null);
+	/** Turns elapsed. Only used to age misses under MOBILE FLEET. */
+	turnCount = $state(0);
+	/** Index into shipsUnderWay of the hull the player is about to move. */
+	movingShip = $state(0);
 	/** True when this session picked up an interrupted game. */
 	resumed = $state(false);
 
@@ -277,6 +287,66 @@ export class Game {
 	/** Planes still able to fly, in slot order. */
 	get flightReady() {
 		return liveAircraft(this.playerFlight);
+	}
+
+	/** The turn number handed to fireAt, or undefined when misses never go stale. */
+	get markTurn() {
+		return this.effective.mobileFleet ? this.turnCount : undefined;
+	}
+
+	get placementRules() {
+		return { noAdjacency: this.effective.noAdjacency };
+	}
+
+	/** Own ships that could get under way this turn. */
+	get underWay() {
+		if (!this.effective.mobileFleet || this.phase !== 'battle' || this.turn !== 'player') return [];
+		return shipsUnderWay(this.playerBoard, this.placementRules);
+	}
+
+	selectMover(index: number) {
+		this.movingShip = index;
+	}
+
+	/** Where the selected ship would end up, for the preview. */
+	movePreview(heading: Heading): Coord[] {
+		const ship = this.underWay[this.movingShip];
+		if (!ship) return [];
+		return previewMove(ship, heading, this.playerBoard.ships, this.size, this.placementRules);
+	}
+
+	/** Gets one ship under way. This is the turn's action, in place of firing. */
+	steer(heading: Heading) {
+		if (this.phase !== 'battle' || this.turn !== 'player') return false;
+		const ship = this.underWay[this.movingShip];
+		if (!ship || !moveShip(this.playerBoard, ship, heading, this.placementRules)) return false;
+
+		this.playerBoard = { ...this.playerBoard };
+		this.playerFleet = this.playerBoard.ships.map((s) => ({
+			class: s.class,
+			bow: { ...s.bow },
+			facing: s.facing
+		}));
+		// The deck moved, so anything still parked on it moves too.
+		this.#reseatFlight(this.playerFlight, ship.class);
+
+		this.#say('player', `${shipSpec(ship.class).name} under way, one cell ${heading}`);
+		play(this.#synth, 'launch');
+		this.pending = [];
+		this.#afterPlayerTurn([]);
+		return true;
+	}
+
+	/** Keeps parked aircraft on their carrier after it moves. */
+	#reseatFlight(flight: Aircraft[], moved: ShipClass) {
+		if (moved !== 'CV') return;
+		const carrier = this.playerBoard.ships.find((s) => s.class === 'CV');
+		if (!carrier) return;
+		const deck = cellsOf(carrier);
+		flight.forEach((plane, i) => {
+			if (plane.at === null) plane.home = { ...deck[i === 0 ? 1 : 3] };
+		});
+		this.playerFlight = [...flight];
 	}
 
 	/** Cells the armed weapon would touch if fired at the reticle. */
@@ -446,7 +516,7 @@ export class Game {
 		}
 
 		const use: WeaponUse = { weapon: this.armed, at: coord, orientation: this.orientation };
-		const outcome = fireWeapon(this.cpuBoard, use, 'player', !this.effective.sunkSilence);
+		const outcome = fireWeapon(this.cpuBoard, use, 'player', !this.effective.sunkSilence, this.markTurn);
 		if (!outcome.fired) {
 			this.#say('system', 'That launch point is not on the grid edge.');
 			return;
@@ -540,7 +610,7 @@ export class Game {
 
 		const events: GameEvent[] = [];
 		for (const coord of volley) {
-			const outcome = fireAt(this.cpuBoard, coord, !this.effective.sunkSilence);
+			const outcome = fireAt(this.cpuBoard, coord, !this.effective.sunkSilence, this.markTurn);
 			events.push(...shotEvents('player', coord, outcome));
 		}
 		this.#emit(events);
@@ -549,6 +619,7 @@ export class Game {
 	}
 
 	#afterPlayerTurn(events: GameEvent[]) {
+		this.turnCount++;
 		this.#reapGrounded(events, 'cpu');
 		if (this.#checkVictory('player', this.cpuBoard)) return;
 
@@ -587,13 +658,23 @@ export class Game {
 			}
 		}
 
+		// Under MOBILE FLEET, pull a threatened hull out of the line of fire
+		// instead of shooting. The CPU is held to the same one-ship-a-turn limit.
+		if (this.effective.mobileFleet && this.#cpuSteer()) return;
+
 		const count = shotsPerTurn(this.cpuBoard, this.effective);
-		const volley = chooseSalvo(this.playerBoard, this.difficulty, this.#rng, count);
+		const volley = chooseSalvo(
+			this.playerBoard,
+			this.difficulty,
+			this.#rng,
+			count,
+			this.markTurn
+		);
 		if (!volley.length) return;
 
 		const events: GameEvent[] = [];
 		for (const shot of volley) {
-			const outcome = fireAt(this.playerBoard, shot, !this.effective.sunkSilence);
+			const outcome = fireAt(this.playerBoard, shot, !this.effective.sunkSilence, this.markTurn);
 			events.push(...shotEvents('cpu', shot, outcome));
 		}
 		this.#emit(events);
@@ -601,7 +682,48 @@ export class Game {
 		this.#afterCpuTurn(events);
 	}
 
+	/**
+	 * Moves a CPU ship the player has been shooting near. Returns true when it
+	 * spent the turn doing so.
+	 */
+	#cpuSteer(): boolean {
+		const candidates = shipsUnderWay(this.cpuBoard, this.placementRules);
+		if (!candidates.length) return false;
+
+		const threatened = candidates.find((ship) =>
+			cellsOf(ship).some((cell) => this.#firedNear(cell))
+		);
+		if (!threatened) return false;
+
+		const heading: Heading = this.#rng.next() < 0.5 ? 'ahead' : 'astern';
+		const moved =
+			moveShip(this.cpuBoard, threatened, heading, this.placementRules) ||
+			moveShip(this.cpuBoard, threatened, heading === 'ahead' ? 'astern' : 'ahead', this.placementRules);
+		if (!moved) return false;
+
+		this.cpuBoard = { ...this.cpuBoard };
+		this.#say('cpu', 'A ship is under way');
+		play(this.#synth, 'launch');
+		this.#afterCpuTurn([]);
+		return true;
+	}
+
+	/** True when the player has resolved a shot within one cell of `cell`. */
+	#firedNear(cell: Coord): boolean {
+		for (let dr = -1; dr <= 1; dr++) {
+			for (let dc = -1; dc <= 1; dc++) {
+				const row = cell.row + dr;
+				const col = cell.col + dc;
+				if (row < 0 || row >= this.size.rows || col < 0 || col >= this.size.cols) continue;
+				const mark = markAt(this.cpuBoard, { row, col });
+				if (mark && mark.kind !== 'scan') return true;
+			}
+		}
+		return false;
+	}
+
 	#afterCpuTurn(events: GameEvent[]) {
+		this.turnCount++;
 		this.#reapGrounded(events, 'player');
 		if (this.#checkVictory('cpu', this.playerBoard)) return;
 

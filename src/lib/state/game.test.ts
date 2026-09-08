@@ -4,7 +4,7 @@ import { Synth } from '$lib/audio/synth';
 import { FakeAudioContext } from '$lib/audio/fakeContext';
 import { untriedCells, viewOf } from '$lib/engine/ai';
 import { sunkClasses } from '$lib/engine/ai/view';
-import { shipAt } from '$lib/engine/board';
+import { markAt, shipAt } from '$lib/engine/board';
 import { fireAt } from '$lib/engine/resolve';
 import { cellsOf } from '$lib/engine/geometry';
 import { FORMATION_IDS } from '$lib/data/formations';
@@ -746,5 +746,123 @@ describe('Game.resume', () => {
 		first.reset();
 
 		expect(Game.resume(999, first.synthForTest).resumed).toBe(false);
+	});
+})
+
+describe('MOBILE FLEET', () => {
+	function mobile() {
+		const made = makeGame();
+		made.game.setHouseRule('mobileFleet', true);
+		made.game.startBattle();
+		return made;
+	}
+
+	it('offers nothing to steer while the rule is off', () => {
+		const { game } = makeGame();
+		game.startBattle();
+		expect(game.underWay).toHaveLength(0);
+	});
+
+	it('offers the undamaged ships that actually have somewhere to go', () => {
+		const { game } = mobile();
+
+		// Not always all five: a hull pinned against an edge or another ship at
+		// both ends has no move, and is correctly left off the list.
+		expect(game.underWay.length).toBeGreaterThan(0);
+		expect(game.underWay.length).toBeLessThanOrEqual(5);
+
+		for (const ship of game.underWay) {
+			expect(ship.hits.some(Boolean)).toBe(false);
+			const index = game.underWay.indexOf(ship);
+			game.selectMover(index);
+			expect(game.movePreview('ahead').length + game.movePreview('astern').length).toBeGreaterThan(
+				0
+			);
+		}
+	});
+
+	it('moves the chosen ship and spends the turn doing it', () => {
+		const { game } = mobile();
+		const before = { ...game.underWay[0].bow };
+		const cls = game.underWay[0].class;
+
+		expect(game.steer('ahead') || game.steer('astern')).toBe(true);
+		const after = game.playerBoard.ships.find((s) => s.class === cls)!.bow;
+		expect(after).not.toEqual(before);
+
+		// Moving is the action: the enemy board is untouched and the turn passes.
+		expect(untriedCells(viewOf(game.cpuBoard))).toHaveLength(100);
+		expect(game.turn).toBe('cpu');
+	});
+
+	it('keeps a damaged ship at anchor', () => {
+		const { game } = mobile();
+		const victim = game.playerBoard.ships[0];
+		fireAt(game.playerBoard, cellsOf(victim)[0]);
+		game.playerBoard = { ...game.playerBoard };
+
+		expect(game.underWay.map((s) => s.class)).not.toContain(victim.class);
+	});
+
+	it('stamps misses with the turn so they can go stale', () => {
+		const { game } = mobile();
+		const shot = untriedCells(viewOf(game.cpuBoard)).find((c) => !shipAt(game.cpuBoard, c))!;
+		game.playerFire(shot);
+
+		expect(markAt(game.cpuBoard, shot)).toMatchObject({ kind: 'miss', turn: expect.any(Number) });
+	});
+
+	it('leaves misses unstamped when the rule is off', () => {
+		const { game } = makeGame();
+		game.startBattle();
+		const shot = untriedCells(viewOf(game.cpuBoard)).find((c) => !shipAt(game.cpuBoard, c))!;
+		game.playerFire(shot);
+
+		expect(markAt(game.cpuBoard, shot)?.turn).toBeUndefined();
+	});
+
+	it('carries parked aircraft along when the carrier moves', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+		game.setWeapons('ADVANCED');
+		game.setHouseRule('mobileFleet', true);
+		game.startBattle();
+
+		const carrierIndex = game.underWay.findIndex((s) => s.class === 'CV');
+		if (carrierIndex < 0) return; // hemmed in on this seed
+		game.selectMover(carrierIndex);
+		if (!game.steer('ahead') && !game.steer('astern')) return;
+
+		const deck = new Set(
+			cellsOf(game.playerBoard.ships.find((s) => s.class === 'CV')!).map((c) => `${c.row},${c.col}`)
+		);
+		for (const plane of game.playerFlight) {
+			if (plane.at === null) expect(deck.has(`${plane.home.row},${plane.home.col}`)).toBe(true);
+		}
+	});
+
+	it('lets the CPU pull a threatened ship out of the line of fire', () => {
+		const { game } = mobile();
+
+		// Shoot around a CPU ship until it moves rather than shoots back.
+		let moved = false;
+		for (let turn = 0; turn < 30 && game.phase === 'battle' && !moved; turn++) {
+			const cell = untriedCells(viewOf(game.cpuBoard))[0];
+			game.playerFire(cell);
+			vi.runAllTimers();
+			moved = game.log.some((l) => l.text.includes('under way'));
+		}
+		expect(moved).toBe(true);
+	});
+
+	it('still plays to a finish', () => {
+		const { game } = mobile();
+		for (let turn = 0; turn < 400 && game.phase === 'battle'; turn++) {
+			const cell = untriedCells(viewOf(game.cpuBoard))[0];
+			if (!cell) break;
+			game.playerFire(cell);
+			vi.runAllTimers();
+		}
+		expect(game.phase).toBe('result');
 	});
 })

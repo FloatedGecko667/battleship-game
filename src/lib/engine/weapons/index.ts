@@ -163,7 +163,9 @@ export function fireWeapon(
 	target: Board,
 	use: WeaponUse,
 	shooter: 'player' | 'cpu',
-	announceSunk = true
+	announceSunk = true,
+	/** Passed under MOBILE FLEET so weapon shots age their misses too. */
+	turn?: number
 ): WeaponOutcome {
 	if (isCarrierWeapon(use.weapon)) {
 		throw new Error(`${use.weapon} is resolved through the flight state, not fireWeapon`);
@@ -182,7 +184,7 @@ export function fireWeapon(
 
 		const events: GameEvent[] = [];
 		for (const cell of lane) {
-			const outcome = fireAt(target, cell, announceSunk);
+			const outcome = fireAt(target, cell, announceSunk, turn);
 			events.push(...shotEvents(shooter, cell, outcome));
 			// The missile stops on the first ship it meets.
 			if (outcome.result === 'hit' && !outcome.repeat) break;
@@ -198,7 +200,7 @@ export function fireWeapon(
 
 	const events: GameEvent[] = [];
 	for (const cell of cells) {
-		const outcome = fireAt(target, cell, announceSunk);
+		const outcome = fireAt(target, cell, announceSunk, turn);
 		events.push(...shotEvents(shooter, cell, outcome));
 	}
 	return { fired: true, events };

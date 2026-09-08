@@ -2,10 +2,13 @@ import type { Coord, Facing } from '../types';
 import { cellsOf } from '../geometry';
 import { shipLength } from '../fleet';
 import type { Rng } from '../rng';
-import { remainingClasses, type TargetView } from './view';
+import { isStaleMiss, remainingClasses, type TargetView } from './view';
 
 /** How much more a placement counts for each unresolved hit it explains. */
 const HIT_WEIGHT = 8;
+
+/** A stale cell is worth revisiting, but well behind water never tried. */
+const STALE_WEIGHT = 0.05;
 
 function index(view: TargetView, row: number, col: number): number {
 	return row * view.size.cols + col;
@@ -26,7 +29,7 @@ function couldHideHull(view: TargetView, coord: Coord): boolean {
 	// A sonar sweep says nothing about the individual cell it is centred on.
 	if (mark.kind === 'scan') return true;
 	// Water, or a cell already accounted for by a ship that has gone down.
-	if (mark.kind === 'miss') return false;
+	if (mark.kind === 'miss') return isStaleMiss(mark, view.turn);
 	return !mark.revealedClass;
 }
 
@@ -85,10 +88,15 @@ export function densityMap(view: TargetView): number[] {
 		}
 	}
 
-	// Never aim at a cell already resolved, however dense it looks.
+	// Never aim at a cell already resolved. A stale miss is worth revisiting -
+	// something may have sailed in - but only once the fresh water is gone, so
+	// it keeps a fraction of its score rather than its full one. Treating it as
+	// wholly unknown made the search cycle over the same few central cells and
+	// never sweep the board.
 	for (let i = 0; i < map.length; i++) {
 		const mark = view.marks[i];
-		if (mark && mark.kind !== 'scan') map[i] = 0;
+		if (!mark || mark.kind === 'scan') continue;
+		map[i] = isStaleMiss(mark, view.turn) ? map[i] * STALE_WEIGHT : 0;
 	}
 
 	return map;

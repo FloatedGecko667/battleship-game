@@ -34,6 +34,11 @@ export interface Mark {
 	kind: MarkKind;
 	/** Set on `hit` marks once the ship that owned the cell was sunk. */
 	revealedClass?: ShipClass;
+	/**
+	 * Turn the mark was made. Only stamped under MOBILE FLEET, where a miss
+	 * stops being the last word on a cell once ships can sail into it.
+	 */
+	turn?: number;
 }
 
 export interface BoardSize {

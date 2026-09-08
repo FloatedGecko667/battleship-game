@@ -15,6 +15,7 @@ export const DIFFICULTY_NAME: Record<Difficulty, string> = {
 };
 
 /** A cell is worth firing at unless a shot has already resolved there. */
+/** Never fired at. A stale miss has been fired at, however old it is. */
 export function isUntried(view: TargetView, coord: Coord): boolean {
 	const mark = view.marks[coord.row * view.size.cols + coord.col];
 	return mark === null || mark === undefined || mark.kind === 'scan';
@@ -53,8 +54,13 @@ export function pickRandom(view: TargetView, rng: Rng): Coord | null {
  * Picks the CPU's shot. Takes a Board for convenience but immediately narrows
  * it to what a shooter may see, so no level can read the defender's fleet.
  */
-export function chooseShot(board: Board, difficulty: Difficulty, rng: Rng): Coord | null {
-	const view = viewOf(board);
+export function chooseShot(
+	board: Board,
+	difficulty: Difficulty,
+	rng: Rng,
+	turn?: number
+): Coord | null {
+	const view = viewOf(board, turn);
 	switch (difficulty) {
 		case 1:
 			return pickRandom(view, rng);
@@ -74,9 +80,10 @@ export function chooseSalvo(
 	board: Board,
 	difficulty: Difficulty,
 	rng: Rng,
-	count: number
+	count: number,
+	turn?: number
 ): Coord[] {
-	const view = viewOf(board);
+	const view = viewOf(board, turn);
 	if (difficulty === 3) return topDensity(view, count, rng);
 
 	const marks = [...view.marks];
@@ -92,4 +99,4 @@ export function chooseSalvo(
 	return shots;
 }
 
-export { viewOf, type TargetView } from './view';
+export { viewOf, isStaleMiss, STALE_AFTER, type TargetView } from './view';

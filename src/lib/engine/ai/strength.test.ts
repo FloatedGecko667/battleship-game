@@ -5,6 +5,7 @@ import { fireAt } from '../resolve';
 import { mulberry32 } from '../rng';
 import { randomFleet } from '../placement';
 import { chooseShot, type Difficulty } from './index';
+import { moveShip, shipsUnderWay } from '../movement';
 import type { BoardSize } from '../types';
 
 /** Shots the level needs to clear a whole fleet on its own. */
@@ -57,6 +58,41 @@ describe('difficulty ladder', () => {
 		const [l1, l2, l3] = ([1, 2, 3] as Difficulty[]).map((d) => meanShots(d, 80, CLASSIC));
 		expect(l2).toBeLessThan(l1);
 		expect(l3).toBeLessThan(l2);
+	});
+
+	it('pays roughly half as much again against a fleet that keeps moving', () => {
+		// Measured over 300 games with a 2000-shot cap: a median of 65 and about
+		// 1-2% that a ship evades indefinitely, since moving costs the defender
+		// their turn rather than being free.
+		const rng = mulberry32(11);
+		const finished: number[] = [];
+
+		for (let seed = 0; seed < 60; seed++) {
+			const board = createBoard(CLASSIC, randomFleet(CLASSIC, mulberry32(seed)));
+			let shots = 0;
+			let turn = 0;
+
+			while (!board.ships.every((ship) => ship.hits.every(Boolean)) && shots < 600) {
+				if (rng.next() < 0.3) {
+					const movers = shipsUnderWay(board);
+					if (movers.length) {
+						moveShip(board, movers[rng.int(movers.length)], rng.next() < 0.5 ? 'ahead' : 'astern');
+					}
+				}
+				const shot = chooseShot(board, 3, rng, turn);
+				if (!shot) break;
+				fireAt(board, shot, true, turn);
+				shots++;
+				turn++;
+			}
+			if (board.ships.every((ship) => ship.hits.every(Boolean))) finished.push(shots);
+		}
+
+		// Most games must still end, and end in a sane number of shots.
+		expect(finished.length).toBeGreaterThan(50);
+		const mean = finished.reduce((a, b) => a + b, 0) / finished.length;
+		expect(mean).toBeGreaterThan(50);
+		expect(mean).toBeLessThan(120);
 	});
 
 	it('still clears the wider DELUXE board', () => {

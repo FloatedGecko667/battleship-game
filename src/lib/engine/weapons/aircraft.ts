@@ -74,7 +74,8 @@ export function flySweep(
 	pattern: ScanPattern,
 	armed: boolean,
 	shooter: 'player' | 'cpu',
-	announceSunk = true
+	announceSunk = true,
+	turn?: number
 ): SweepOutcome {
 	const cells = scanCells(centre, pattern, target.size);
 	const found = cells.filter((cell) => shipAt(target, cell) !== null);
@@ -91,7 +92,7 @@ export function flySweep(
 
 		const events: GameEvent[] = [];
 		for (const cell of cells) {
-			const outcome = fireAt(target, cell, announceSunk);
+			const outcome = fireAt(target, cell, announceSunk, turn);
 			events.push(...shotEvents(shooter, cell, outcome));
 		}
 		return { spentAmmo: false, events };
@@ -99,7 +100,7 @@ export function flySweep(
 
 	const events: GameEvent[] = [];
 	for (const cell of cells) {
-		const outcome = fireAt(target, cell, announceSunk);
+		const outcome = fireAt(target, cell, announceSunk, turn);
 		events.push(...shotEvents(shooter, cell, outcome));
 	}
 	return { spentAmmo: true, events };

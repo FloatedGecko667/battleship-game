@@ -10,6 +10,7 @@
 	import RulesPanel from '$lib/ui/RulesPanel.svelte';
 	import WeaponBar from '$lib/ui/WeaponBar.svelte';
 	import FormationPicker from '$lib/ui/FormationPicker.svelte';
+	import HelmPanel from '$lib/ui/HelmPanel.svelte';
 	import StatusLamps from '$lib/ui/StatusLamps.svelte';
 	import type { Coord } from '$lib/engine/types';
 	import { phoneticLabel, type Edition } from '$lib/engine/edition';
@@ -214,7 +215,7 @@
 			label="Your fleet"
 			highlight={game.phase === 'deploy' ? game.playerFleet[game.selected]?.class : null}
 			aircraft={game.playerFlight.filter((p) => p.alive && !p.at).map((p) => p.home)}
-			aim={game.armed === 'ANTI_AIR' ? game.aimPreview : []}
+			aim={game.armed === 'ANTI_AIR' ? game.aimPreview : game.movePreview('ahead')}
 			onFire={game.armed === 'ANTI_AIR' && game.turn === 'player'
 				? (c) => game.fireOwnWaters(c)
 				: undefined}
@@ -229,6 +230,15 @@
 		<FleetStatus board={game.cpuBoard} title="Enemy fleet" tone="enemy" />
 		<FleetStatus board={game.playerBoard} title="Own fleet" tone="ally" />
 		<HullCodes board={game.playerBoard} />
+		{#if game.underWay.length > 0 || (game.effective.mobileFleet && game.phase === 'battle')}
+			<HelmPanel
+				ships={game.underWay}
+				selected={game.movingShip}
+				onSelect={(i) => game.selectMover(i)}
+				onSteer={(h) => game.steer(h)}
+				canSteer={(h) => game.movePreview(h).length > 0}
+			/>
+		{/if}
 		<WeaponBar
 			weapons={game.weaponsOnOffer}
 			armed={game.armed}
