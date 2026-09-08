@@ -8,6 +8,9 @@ import { mulberry32, type Rng } from '$lib/engine/rng';
 import { shipSpec } from '$lib/engine/fleet';
 import type { Coord, Ship, Side } from '$lib/engine/types';
 import type { LogLine } from '$lib/ui/LogPanel.svelte';
+import { Synth } from '$lib/audio/synth';
+import { play, soundFor } from '$lib/audio/sounds';
+import { speak } from '$lib/audio/speech';
 
 export type Phase = 'deploy' | 'battle' | 'result';
 
@@ -41,6 +44,8 @@ export class Game {
 	turn = $state<Side>('player');
 	winner = $state<Side | null>(null);
 	lamp = $state<'none' | 'hit' | 'miss'>('none');
+	muted = $state(false);
+	narrate = $state(false);
 	cursor = $state<Coord>({ row: 0, col: 0 });
 	/** Index into `playerFleet` of the ship being positioned during deploy. */
 	selected = $state(0);
@@ -52,10 +57,27 @@ export class Game {
 
 	#rng: Rng;
 	#logId = 0;
+	#synth: Synth;
 
-	constructor(seed = Date.now()) {
+	constructor(seed = Date.now(), synth = new Synth()) {
 		this.#rng = mulberry32(seed);
+		this.#synth = synth;
+		this.muted = synth.muted;
 		this.reset();
+	}
+
+	/** Browsers only allow a context to start inside a gesture. */
+	unlockAudio() {
+		if (!this.#synth.started && this.#synth.unlock()) play(this.#synth, 'boot');
+	}
+
+	toggleMute() {
+		this.muted = !this.muted;
+		this.#synth.setMuted(this.muted);
+	}
+
+	cursorBlip() {
+		play(this.#synth, 'cursor');
 	}
 
 	get size() {
@@ -183,11 +205,22 @@ export class Game {
 
 	// ---- plumbing ---------------------------------------------------------
 
+	/**
+	 * The single place events turn into output. Lamps, sound and the log all
+	 * read this one stream, so they can never drift apart.
+	 */
 	#emit(events: GameEvent[]) {
 		for (const event of events) {
 			if (event.type === 'shot') this.lamp = event.result === 'hit' ? 'hit' : 'miss';
+
+			const sound = soundFor(event);
+			if (sound) play(this.#synth, sound);
+
 			const text = describe(event);
-			if (text) this.#say(event.type === 'victory' ? 'system' : event.side, text);
+			if (text) {
+				this.#say(event.type === 'victory' ? 'system' : event.side, text);
+				speak(text, this.narrate);
+			}
 		}
 	}
 

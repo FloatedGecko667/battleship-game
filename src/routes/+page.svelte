@@ -13,6 +13,14 @@
 	const game = new Game();
 
 	function onKey(event: KeyboardEvent) {
+		game.unlockAudio();
+
+		if (event.key === 'm' || event.key === 'M') {
+			game.toggleMute();
+			event.preventDefault();
+			return;
+		}
+
 		const step: Record<string, Coord> = {
 			ArrowUp: { row: -1, col: 0 },
 			k: { row: -1, col: 0 },
@@ -56,6 +64,7 @@
 					row: Math.min(game.size.rows - 1, Math.max(0, game.cursor.row + delta.row)),
 					col: Math.min(game.size.cols - 1, Math.max(0, game.cursor.col + delta.col))
 				};
+				game.cursorBlip();
 				event.preventDefault();
 				return;
 			}
@@ -67,7 +76,7 @@
 	}
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} onpointerdown={() => game.unlockAudio()} />
 
 <svelte:head>
 	<title>SALVO//NET</title>
@@ -81,6 +90,12 @@
 			<span class="chip">{game.edition}</span>
 			<span class="chip">{game.size.cols}×{game.size.rows}</span>
 			<span class="chip">CPU {DIFFICULTY_NAME[game.difficulty]}</span>
+			<button
+				class="chip toggle"
+				type="button"
+				aria-pressed={game.muted}
+				onclick={() => game.toggleMute()}
+			>{game.muted ? 'MUTED' : 'SOUND'}</button>
 			<StatusLamps lamp={game.lamp} />
 		</div>
 	</header>
@@ -94,7 +109,7 @@
 	{:else if game.phase === 'battle'}
 		<p class="hint">
 			{game.turn === 'player' ? 'Awaiting orders.' : 'Enemy is firing…'} Arrows move the reticle,
-			<kbd>Enter</kbd> fires.
+			<kbd>Enter</kbd> fires, <kbd>M</kbd> mutes.
 		</p>
 	{:else}
 		<p class="hint result">
@@ -193,6 +208,17 @@
 		font: inherit;
 		font-size: 0.68rem;
 		color: var(--text);
+	}
+
+	.chip.toggle {
+		background: transparent;
+		cursor: pointer;
+		font-family: inherit;
+	}
+
+	.chip.toggle[aria-pressed='true'] {
+		color: var(--enemy);
+		border-color: var(--enemy-dim);
 	}
 
 	button {
