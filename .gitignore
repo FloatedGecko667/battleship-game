@@ -29,3 +29,6 @@ docs/*.pdf
 
 # Dev-server launch config is machine-local
 .claude/
+
+# Playwright run artefacts
+/playwright-report
