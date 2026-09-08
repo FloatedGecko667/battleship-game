@@ -9,6 +9,7 @@
 	import FleetStatus from '$lib/ui/FleetStatus.svelte';
 	import RulesPanel from '$lib/ui/RulesPanel.svelte';
 	import WeaponBar from '$lib/ui/WeaponBar.svelte';
+	import FormationPicker from '$lib/ui/FormationPicker.svelte';
 	import StatusLamps from '$lib/ui/StatusLamps.svelte';
 	import type { Coord } from '$lib/engine/types';
 	import { phoneticLabel, type Edition } from '$lib/engine/edition';
@@ -212,6 +213,9 @@
 			activePlane={game.activePlane}
 			onSelectPlane={(i) => game.selectPlane(i)}
 		/>
+		{#if game.phase === 'deploy' && game.presetsAvailable}
+			<FormationPicker selected={game.presetId} onPick={(id) => game.usePreset(id)} />
+		{/if}
 		<RulesPanel
 			edition={game.edition}
 			gameType={game.rules.gameType}

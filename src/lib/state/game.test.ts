@@ -7,6 +7,7 @@ import { sunkClasses } from '$lib/engine/ai/view';
 import { shipAt } from '$lib/engine/board';
 import { fireAt } from '$lib/engine/resolve';
 import { cellsOf } from '$lib/engine/geometry';
+import { FORMATION_IDS } from '$lib/data/formations';
 
 function makeGame(seed = 42) {
 	const contexts: FakeAudioContext[] = [];
@@ -545,5 +546,65 @@ describe('carrier aircraft', () => {
 		const ids = game.weaponsOnOffer.map((w) => w.id);
 		expect(ids).not.toContain('CV_AIRCRAFT');
 		expect(ids).not.toContain('ANTI_AIR');
+	});
+})
+
+describe('rulebook formations', () => {
+	it('is offered on DELUXE only, since the diagrams are 14 files wide', () => {
+		const { game } = makeGame();
+		expect(game.presetsAvailable).toBe(false);
+		expect(game.usePreset('A1')).toBe(false);
+
+		game.reset('DELUXE');
+		expect(game.presetsAvailable).toBe(true);
+	});
+
+	it('deploys A1 exactly as the rulebook draws it', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+		expect(game.usePreset('A1')).toBe(true);
+
+		const byClass = Object.fromEntries(game.playerFleet.map((s) => [s.class, s]));
+		expect(byClass.CV).toMatchObject({ bow: { row: 6, col: 6 }, facing: 'W' });
+		expect(byClass.PB).toMatchObject({ bow: { row: 6, col: 13 }, facing: 'N' });
+		expect(game.deploymentValid).toBe(true);
+	});
+
+	it('brings the aircraft along, parked where the diagram shows them', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+		game.usePreset('A1');
+
+		expect(game.playerFlight).toHaveLength(2);
+		expect(game.playerFlight.map((p) => `${p.home.row},${p.home.col}`).sort()).toEqual([
+			'6,7',
+			'6,9'
+		]);
+		expect(game.playerFlight.every((p) => p.at === null && p.armed)).toBe(true);
+	});
+
+	it('plays from every one of the hundred formations', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+
+		for (const id of FORMATION_IDS) {
+			expect(game.usePreset(id)).toBe(true);
+			expect(game.deploymentValid).toBe(true);
+			expect(game.playerBoard.ships).toHaveLength(5);
+		}
+	});
+
+	it('stops calling it a formation once the fleet is edited', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+		game.usePreset('A1');
+		expect(game.presetId).toBe('A1');
+
+		game.rotateSelected();
+		expect(game.presetId).toBeNull();
+
+		game.usePreset('B2');
+		game.shuffleFleet();
+		expect(game.presetId).toBeNull();
 	});
 })

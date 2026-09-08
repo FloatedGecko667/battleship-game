@@ -47,6 +47,7 @@ import {
 import { mulberry32, type Rng } from '$lib/engine/rng';
 import { shipSpec } from '$lib/engine/fleet';
 import { cellsOf } from '$lib/engine/geometry';
+import { FORMATIONS, FORMATION_IDS, type FormationId } from '$lib/data/formations';
 import type { Coord, Ship, Side } from '$lib/engine/types';
 import type { LogLine } from '$lib/ui/LogPanel.svelte';
 import { Synth } from '$lib/audio/synth';
@@ -106,6 +107,8 @@ export class Game {
 	cpuFlight = $state<Aircraft[]>([]);
 	/** Which own plane the next launch order applies to. */
 	activePlane = $state(0);
+	/** Set while the fleet came from a rulebook formation rather than by hand. */
+	presetId = $state<FormationId | null>(null);
 
 	playerFleet = $state<Ship[]>([]);
 	playerBoard = $state<Board>(createBoard(boardSize('CLASSIC'), []));
@@ -238,7 +241,31 @@ export class Game {
 
 	// ---- deployment -------------------------------------------------------
 
+	/** The rulebook's preset formations are drawn on the 14-wide grid only. */
+	get presetsAvailable() {
+		return this.edition === 'DELUXE';
+	}
+
+	/**
+	 * Deploys one of the hundred formations from the rulebook, aircraft included.
+	 * Rejected on CLASSIC, where files 11-14 do not exist.
+	 */
+	usePreset(id: FormationId) {
+		if (!this.presetsAvailable) return false;
+		const formation = FORMATIONS[id];
+		if (!formation) return false;
+
+		this.playerFleet = formation.ships.map((ship) => ({ ...ship, bow: { ...ship.bow } }));
+		this.playerBoard = createBoard(this.size, this.playerFleet);
+		this.playerFlight = formation.aircraft.map((cell, i) =>
+			newAircraft(i as 0 | 1, { ...cell })
+		);
+		this.presetId = id;
+		return true;
+	}
+
 	shuffleFleet() {
+		this.presetId = null;
 		this.playerFleet = randomFleet(this.size, this.#rng, {
 			noAdjacency: this.effective.noAdjacency
 		});
@@ -280,6 +307,7 @@ export class Game {
 	}
 
 	#replaceSelected(ship: Ship) {
+		this.presetId = null;
 		const next = [...this.playerFleet];
 		next[this.selected] = ship;
 		this.playerFleet = next;
