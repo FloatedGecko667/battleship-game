@@ -17,10 +17,22 @@
 		label?: string;
 		/** Hull class being positioned during deployment, highlighted on the board. */
 		highlight?: ShipClass | null;
+		/** Cells called but not yet answered, while a salvo is assembled. */
+		pending?: readonly Coord[];
 	}
 
-	let { board, tone, revealShips, cursor = null, onFire, label, highlight = null }: Props =
-		$props();
+	let {
+		board,
+		tone,
+		revealShips,
+		cursor = null,
+		onFire,
+		label,
+		highlight = null,
+		pending = []
+	}: Props = $props();
+
+	const pendingKeys = $derived(new Set(pending.map((c) => `${c.row},${c.col}`)));
 
 	const cols = $derived(board.size.cols);
 	const rows = $derived(board.size.rows);
@@ -81,6 +93,7 @@
 						class:cursor={cursor?.row === row && cursor?.col === col}
 						class:sunk={paint?.sunk}
 						class:selected={highlight !== null && paint?.cls === highlight}
+						class:pending={pendingKeys.has(`${row},${col}`)}
 						type="button"
 						disabled={!onFire}
 						style="grid-row:{row + 1}; grid-column:{col + 1}"
@@ -90,6 +103,7 @@
 						{#if paint}<span class="hull" class:bow={paint.bow}>{paint.glyph}</span>{/if}
 						{#if mark?.kind === 'miss'}<span class="pin miss">●</span>{/if}
 						{#if mark?.kind === 'scan'}<span class="pin scan">●</span>{/if}
+						{#if pendingKeys.has(`${row},${col}`)}<span class="queued">◎</span>{/if}
 						{#if mark?.kind === 'hit'}
 							<span class="pin hit">●</span>
 							<span class="cross">╳</span>
@@ -192,6 +206,18 @@
 	.hull.bow {
 		opacity: 1;
 		text-shadow: 0 0 4px var(--neon-glow), 0 0 10px var(--neon-glow);
+	}
+
+	/* A called-but-unanswered salvo shot. */
+	.cell.pending {
+		background: color-mix(in srgb, var(--neon) 16%, transparent);
+	}
+
+	.queued {
+		grid-area: 1 / 1;
+		font-size: calc(var(--cell) * 0.55);
+		color: var(--neon);
+		text-shadow: 0 0 5px var(--neon-glow);
 	}
 
 	.cell.selected {

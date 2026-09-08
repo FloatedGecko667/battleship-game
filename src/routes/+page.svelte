@@ -7,6 +7,7 @@
 	import Legend from '$lib/ui/Legend.svelte';
 	import LogPanel from '$lib/ui/LogPanel.svelte';
 	import FleetStatus from '$lib/ui/FleetStatus.svelte';
+	import RulesPanel from '$lib/ui/RulesPanel.svelte';
 	import StatusLamps from '$lib/ui/StatusLamps.svelte';
 	import type { Coord } from '$lib/engine/types';
 
@@ -115,8 +116,11 @@
 		</p>
 	{:else if game.phase === 'battle'}
 		<p class="hint">
-			{game.turn === 'player' ? 'Awaiting orders.' : 'Enemy is firing…'} Arrows move the reticle,
-			<kbd>Enter</kbd> fires, <kbd>M</kbd> mutes.
+			{game.turn === 'player' ? 'Awaiting orders.' : 'Enemy is firing…'}
+			{#if game.allowance > 1}
+				Salvo: call {game.allowance} targets ({game.pending.length} called).
+			{/if}
+			Arrows move the reticle, <kbd>Enter</kbd> fires, <kbd>M</kbd> mutes.
 		</p>
 	{:else}
 		<p class="hint result">
@@ -132,6 +136,7 @@
 			revealShips={false}
 			label="Enemy waters"
 			cursor={game.phase === 'battle' ? game.cursor : null}
+			pending={game.pending}
 			onFire={game.phase === 'battle' && game.turn === 'player'
 				? (c) => game.playerFire(c)
 				: undefined}
@@ -149,6 +154,11 @@
 		<FleetStatus board={game.cpuBoard} title="Enemy fleet" tone="enemy" />
 		<FleetStatus board={game.playerBoard} title="Own fleet" tone="ally" />
 		<HullCodes board={game.playerBoard} />
+		<RulesPanel
+			house={game.rules.house}
+			locked={game.phase !== 'deploy'}
+			onToggle={(key, value) => game.setHouseRule(key, value)}
+		/>
 		<Legend />
 		<LogPanel lines={game.log} />
 	</div>

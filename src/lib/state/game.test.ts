@@ -3,7 +3,9 @@ import { Game } from './game.svelte';
 import { Synth } from '$lib/audio/synth';
 import { FakeAudioContext } from '$lib/audio/fakeContext';
 import { untriedCells, viewOf } from '$lib/engine/ai';
+import { sunkClasses } from '$lib/engine/ai/view';
 import { shipAt } from '$lib/engine/board';
+import { fireAt } from '$lib/engine/resolve';
 import { cellsOf } from '$lib/engine/geometry';
 
 function makeGame(seed = 42) {
@@ -112,6 +114,99 @@ describe('deployment controls', () => {
 		game.shuffleFleet();
 		expect(game.deploymentValid).toBe(true);
 		expect(game.playerBoard.ships).toHaveLength(5);
+	});
+});
+
+describe('house rules', () => {
+	it('calls a whole volley before answering any of it under SALVO', () => {
+		const { game } = makeGame();
+		game.setHouseRule('salvo', true);
+		game.startBattle();
+		expect(game.allowance).toBe(5);
+
+		const cells = untriedCells(viewOf(game.cpuBoard)).slice(0, 5);
+		for (const cell of cells.slice(0, 4)) {
+			game.playerFire(cell);
+			// Nothing is answered yet: the board is untouched.
+			expect(untriedCells(viewOf(game.cpuBoard))).toHaveLength(100);
+		}
+		expect(game.pending).toHaveLength(4);
+
+		game.playerFire(cells[4]);
+		expect(game.pending).toHaveLength(0);
+		expect(untriedCells(viewOf(game.cpuBoard))).toHaveLength(95);
+	});
+
+	it('lets a called cell be taken back before the volley resolves', () => {
+		const { game } = makeGame();
+		game.setHouseRule('salvo', true);
+		game.startBattle();
+
+		const cell = untriedCells(viewOf(game.cpuBoard))[0];
+		game.playerFire(cell);
+		expect(game.pending).toHaveLength(1);
+		game.playerFire(cell);
+		expect(game.pending).toHaveLength(0);
+	});
+
+	it('shrinks the salvo as the player loses ships', () => {
+		const { game } = makeGame();
+		game.setHouseRule('salvo', true);
+		game.startBattle();
+
+		for (const cell of cellsOf(game.playerBoard.ships[0])) {
+			fireAt(game.playerBoard, cell);
+		}
+		expect(game.allowance).toBe(4);
+	});
+
+	it('keeps the turn on a hit under BONUS TURN', () => {
+		const { game } = makeGame();
+		game.setHouseRule('bonusTurn', true);
+		game.startBattle();
+
+		game.playerFire(cellsOf(game.cpuBoard.ships[0])[0]);
+		expect(game.turn).toBe('player');
+
+		const empty = untriedCells(viewOf(game.cpuBoard)).find((c) => !shipAt(game.cpuBoard, c))!;
+		game.playerFire(empty);
+		expect(game.turn).toBe('cpu');
+	});
+
+	it('withholds the sinking under SUNK SILENCE but still ends the game', () => {
+		const { game } = makeGame();
+		game.setHouseRule('sunkSilence', true);
+		game.startBattle();
+
+		for (const cell of cellsOf(game.cpuBoard.ships[0])) {
+			game.playerFire(cell);
+			vi.runAllTimers();
+		}
+
+		expect(game.cpuBoard.ships[0].hits.every(Boolean)).toBe(true);
+		expect(sunkClasses(viewOf(game.cpuBoard)).size).toBe(0);
+		expect(game.log.some((line) => line.text.includes('is down'))).toBe(false);
+	});
+
+	it('keeps ships apart under NO ADJACENCY', () => {
+		const { game } = makeGame();
+		game.setHouseRule('noAdjacency', true);
+		expect(game.deploymentValid).toBe(true);
+
+		const occupied = new Set(
+			game.playerFleet.flatMap((ship) => cellsOf(ship).map((c) => `${c.row},${c.col}`))
+		);
+		for (const ship of game.playerFleet) {
+			const own = new Set(cellsOf(ship).map((c) => `${c.row},${c.col}`));
+			for (const cell of cellsOf(ship)) {
+				for (let dr = -1; dr <= 1; dr++) {
+					for (let dc = -1; dc <= 1; dc++) {
+						const key = `${cell.row + dr},${cell.col + dc}`;
+						if (!own.has(key)) expect(occupied.has(key)).toBe(false);
+					}
+				}
+			}
+		}
 	});
 });
 

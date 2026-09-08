@@ -1,8 +1,24 @@
 import { boardSize, coordLabel, type Edition } from '$lib/engine/edition';
-import { createBoard, isFleetDestroyed, type Board } from '$lib/engine/board';
+import { createBoard, isFleetDestroyed, markAt, type Board } from '$lib/engine/board';
 import { randomFleet, rotateWithKick, nudge, canPlace } from '$lib/engine/placement';
-import { fireAt, markScan, other, shotEvents, victoryEvent, type GameEvent } from '$lib/engine/resolve';
-import { chooseShot, type Difficulty } from '$lib/engine/ai';
+import {
+	earnsExtraTurn,
+	fireAt,
+	markScan,
+	other,
+	shotEvents,
+	shotsPerTurn,
+	victoryEvent,
+	type GameEvent
+} from '$lib/engine/resolve';
+import { chooseSalvo, type Difficulty } from '$lib/engine/ai';
+import {
+	DEFAULT_RULES,
+	effectiveRules,
+	NO_HOUSE_RULES,
+	type HouseRules,
+	type RuleSet
+} from '$lib/engine/ruleset';
 import { mulberry32, type Rng } from '$lib/engine/rng';
 import { shipSpec } from '$lib/engine/fleet';
 import type { Coord, Ship, Side } from '$lib/engine/types';
@@ -49,6 +65,10 @@ export class Game {
 	/** Index into `playerFleet` of the ship being positioned during deploy. */
 	selected = $state(0);
 
+	rules = $state<RuleSet>({ ...DEFAULT_RULES, house: { ...NO_HOUSE_RULES } });
+	/** Cells called but not yet answered, while a salvo is being assembled. */
+	pending = $state<Coord[]>([]);
+
 	playerFleet = $state<Ship[]>([]);
 	playerBoard = $state<Board>(createBoard(boardSize('CLASSIC'), []));
 	cpuBoard = $state<Board>(createBoard(boardSize('CLASSIC'), []));
@@ -83,16 +103,34 @@ export class Game {
 		return boardSize(this.edition);
 	}
 
+	get effective() {
+		return effectiveRules(this.rules);
+	}
+
+	/** Shots the player may call this turn. */
+	get allowance() {
+		return shotsPerTurn(this.playerBoard, this.effective);
+	}
+
+	setHouseRule<K extends keyof HouseRules>(key: K, value: HouseRules[K]) {
+		this.rules = { ...this.rules, house: { ...this.rules.house, [key]: value } };
+		// Placement legality can change under NO ADJACENCY, so start clean.
+		if (this.phase === 'deploy') this.shuffleFleet();
+	}
+
 	get busy() {
 		return this.turn === 'cpu' || this.phase !== 'battle';
 	}
 
 	reset(edition: Edition = this.edition) {
 		this.edition = edition;
+		this.rules = { ...this.rules, edition };
 		const size = boardSize(edition);
-		this.playerFleet = randomFleet(size, this.#rng);
+		const placement = { noAdjacency: this.effective.noAdjacency };
+		this.playerFleet = randomFleet(size, this.#rng, placement);
 		this.playerBoard = createBoard(size, this.playerFleet);
-		this.cpuBoard = createBoard(size, randomFleet(size, this.#rng));
+		this.cpuBoard = createBoard(size, randomFleet(size, this.#rng, placement));
+		this.pending = [];
 		this.phase = 'deploy';
 		this.turn = 'player';
 		this.winner = null;
@@ -106,13 +144,17 @@ export class Game {
 	// ---- deployment -------------------------------------------------------
 
 	shuffleFleet() {
-		this.playerFleet = randomFleet(this.size, this.#rng);
+		this.playerFleet = randomFleet(this.size, this.#rng, {
+			noAdjacency: this.effective.noAdjacency
+		});
 		this.playerBoard = createBoard(this.size, this.playerFleet);
 	}
 
 	rotateSelected() {
 		const ship = this.playerFleet[this.selected];
-		const rotated = rotateWithKick(ship, this.playerFleet, this.size);
+		const rotated = rotateWithKick(ship, this.playerFleet, this.size, {
+			noAdjacency: this.effective.noAdjacency
+		});
 		if (!rotated) return false;
 		this.#replaceSelected(rotated);
 		return true;
@@ -120,7 +162,9 @@ export class Game {
 
 	nudgeSelected(delta: Coord) {
 		const ship = this.playerFleet[this.selected];
-		const moved = nudge(ship, delta, this.playerFleet, this.size);
+		const moved = nudge(ship, delta, this.playerFleet, this.size, {
+			noAdjacency: this.effective.noAdjacency
+		});
 		if (!moved) return false;
 		this.#replaceSelected(moved);
 		return true;
@@ -139,8 +183,14 @@ export class Game {
 	}
 
 	get deploymentValid() {
+		const placement = { noAdjacency: this.effective.noAdjacency };
 		return this.playerFleet.every((ship, i) =>
-			canPlace(ship, this.playerFleet.filter((_, j) => j !== i), this.size)
+			canPlace(
+				ship,
+				this.playerFleet.filter((_, j) => j !== i),
+				this.size,
+				placement
+			)
 		);
 	}
 
@@ -148,24 +198,52 @@ export class Game {
 		if (!this.deploymentValid) return;
 		this.phase = 'battle';
 		this.turn = 'player';
+		this.pending = [];
 		this.#say('system', 'Fleet on station. Awaiting orders.');
 	}
 
 	// ---- battle -----------------------------------------------------------
 
+	/**
+	 * Calls one cell. Under Salvo the whole volley is assembled first and only
+	 * answered once it is complete, which is what stops the player from steering
+	 * later shots with the results of earlier ones.
+	 */
 	playerFire(coord: Coord) {
 		if (this.phase !== 'battle' || this.turn !== 'player') return;
+		if (markAt(this.cpuBoard, coord)?.kind === 'hit') return;
+		if (markAt(this.cpuBoard, coord)?.kind === 'miss') return;
 
-		const outcome = fireAt(this.cpuBoard, coord);
-		if (outcome.repeat) {
-			this.#emit(shotEvents('player', coord, outcome));
+		const already = this.pending.findIndex((c) => c.row === coord.row && c.col === coord.col);
+		if (already >= 0) {
+			// Tapping a called cell again takes it back.
+			this.pending = this.pending.filter((_, i) => i !== already);
 			return;
 		}
 
-		this.#emit(shotEvents('player', coord, outcome));
+		if (this.pending.length >= this.allowance) return;
+		this.pending = [...this.pending, coord];
+		if (this.pending.length >= this.allowance) this.#resolvePlayerVolley();
+	}
+
+	#resolvePlayerVolley() {
+		const volley = this.pending;
+		this.pending = [];
+
+		const events: GameEvent[] = [];
+		for (const coord of volley) {
+			const outcome = fireAt(this.cpuBoard, coord, !this.effective.sunkSilence);
+			events.push(...shotEvents('player', coord, outcome));
+		}
+		this.#emit(events);
 		this.cpuBoard = { ...this.cpuBoard };
 
 		if (this.#checkVictory('player', this.cpuBoard)) return;
+
+		if (earnsExtraTurn(events, this.effective)) {
+			this.#emit([{ type: 'extraTurn', side: 'player', reason: 'hit' }]);
+			return;
+		}
 
 		this.turn = 'cpu';
 		setTimeout(() => this.#cpuTurn(), 420);
@@ -174,14 +252,26 @@ export class Game {
 	#cpuTurn() {
 		if (this.phase !== 'battle') return;
 
-		const shot = chooseShot(this.playerBoard, this.difficulty, this.#rng);
-		if (!shot) return;
+		const count = shotsPerTurn(this.cpuBoard, this.effective);
+		const volley = chooseSalvo(this.playerBoard, this.difficulty, this.#rng, count);
+		if (!volley.length) return;
 
-		const outcome = fireAt(this.playerBoard, shot);
-		this.#emit(shotEvents('cpu', shot, outcome));
+		const events: GameEvent[] = [];
+		for (const shot of volley) {
+			const outcome = fireAt(this.playerBoard, shot, !this.effective.sunkSilence);
+			events.push(...shotEvents('cpu', shot, outcome));
+		}
+		this.#emit(events);
 		this.playerBoard = { ...this.playerBoard };
 
 		if (this.#checkVictory('cpu', this.playerBoard)) return;
+
+		if (earnsExtraTurn(events, this.effective)) {
+			this.#emit([{ type: 'extraTurn', side: 'cpu', reason: 'hit' }]);
+			setTimeout(() => this.#cpuTurn(), 420);
+			return;
+		}
+
 		this.turn = 'player';
 	}
 

@@ -1,6 +1,7 @@
 import type { Coord, ShipClass, ShotResult, Side } from './types';
 import { cellsOf } from './geometry';
-import { cellIndex, isFleetDestroyed, isSunk, markAt, shipAt, type Board } from './board';
+import { cellIndex, isFleetDestroyed, isSunk, markAt, shipAt, survivingShips, type Board } from './board';
+import type { EffectiveRules } from './ruleset';
 
 /**
  * Everything that happens in a turn is emitted here. Sound, the status lamps and
@@ -25,8 +26,12 @@ export interface ShotOutcome {
 /**
  * Fires at one cell of `target`. The defender never reveals which ship was hit;
  * the class comes back only when the shot sinks it (rulebook: "Sinking a ship").
+ *
+ * Under SUNK SILENCE the sinking is withheld: the hull still goes down for
+ * victory purposes, but no class is written onto the marks, so a shooter that
+ * reads only its marks - the AI included - genuinely cannot tell.
  */
-export function fireAt(target: Board, coord: Coord): ShotOutcome {
+export function fireAt(target: Board, coord: Coord, announceSunk = true): ShotOutcome {
 	const existing = markAt(target, coord);
 	if (existing && existing.kind !== 'scan') {
 		return { result: existing.kind === 'hit' ? 'hit' : 'miss', repeat: true };
@@ -40,20 +45,21 @@ export function fireAt(target: Board, coord: Coord): ShotOutcome {
 
 	hit.ship.hits[hit.segment] = true;
 	const sunk = isSunk(hit.ship);
+	const reveal = sunk && announceSunk;
 	target.marks[cellIndex(coord, target.size)] = {
 		kind: 'hit',
-		...(sunk ? { revealedClass: hit.ship.class } : {})
+		...(reveal ? { revealedClass: hit.ship.class } : {})
 	};
 
 	// A sinking shot reveals the whole hull, so backfill the earlier hit marks.
-	if (sunk) {
+	if (reveal) {
 		for (const cell of cellsOf(hit.ship)) {
 			const mark = target.marks[cellIndex(cell, target.size)];
 			if (mark?.kind === 'hit') mark.revealedClass = hit.ship.class;
 		}
 	}
 
-	return { result: 'hit', repeat: false, ...(sunk ? { sunk: hit.ship.class } : {}) };
+	return { result: 'hit', repeat: false, ...(reveal ? { sunk: hit.ship.class } : {}) };
 }
 
 /** Records a sonar sweep centre. Detection is binary: no count, no position. */
@@ -72,6 +78,23 @@ export function shotEvents(shooter: Side, coord: Coord, outcome: ShotOutcome): G
 		events.push({ type: 'sunk', side: other(shooter), shipClass: outcome.sunk });
 	}
 	return events;
+}
+
+/** Rulebook Salvo: one shot for each of your own ships still afloat. */
+export function shotsPerTurn(ownBoard: Board, rules: EffectiveRules): number {
+	return rules.salvo ? Math.max(1, survivingShips(ownBoard).length) : 1;
+}
+
+/**
+ * MULTI-ATTACK (and the BONUS TURN house rule) hand the shooter another turn
+ * for a hit; MULTI-ATTACK extends that to a sonar contact.
+ */
+export function earnsExtraTurn(events: readonly GameEvent[], rules: EffectiveRules): boolean {
+	return events.some(
+		(event) =>
+			(rules.extraTurnOnHit && event.type === 'shot' && event.result === 'hit') ||
+			(rules.extraTurnOnScan && event.type === 'scan' && event.detected)
+	);
 }
 
 export function other(side: Side): Side {

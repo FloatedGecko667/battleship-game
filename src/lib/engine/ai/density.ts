@@ -96,20 +96,30 @@ export function densityMap(view: TargetView): number[] {
 
 /** The densest untried cell, ties broken at random. */
 export function densestShot(view: TargetView, rng: Rng): Coord | null {
+	return topDensity(view, 1, rng)[0] ?? null;
+}
+
+/**
+ * The `count` densest untried cells, from a single map.
+ *
+ * Salvo answers a whole volley at once, so the shooter learns nothing between
+ * its shots. Evaluating one map and taking the top slice models that exactly -
+ * re-running the search after each pick would leak feedback that does not exist.
+ */
+export function topDensity(view: TargetView, count: number, rng: Rng): Coord[] {
 	const map = densityMap(view);
-	let best = 0;
-	let candidates: number[] = [];
-
+	const candidates: number[] = [];
 	for (let i = 0; i < map.length; i++) {
-		if (map[i] > best) {
-			best = map[i];
-			candidates = [i];
-		} else if (map[i] === best && best > 0) {
-			candidates.push(i);
-		}
+		if (map[i] > 0) candidates.push(i);
 	}
+	if (!candidates.length) return [];
 
-	if (!candidates.length) return null;
-	const pick = candidates[rng.int(candidates.length)];
-	return { row: Math.floor(pick / view.size.cols), col: pick % view.size.cols };
+	// Shuffle first so equal densities are not always broken the same way.
+	rng.shuffle(candidates);
+	candidates.sort((a, b) => map[b] - map[a]);
+
+	return candidates.slice(0, count).map((i) => ({
+		row: Math.floor(i / view.size.cols),
+		col: i % view.size.cols
+	}));
 }

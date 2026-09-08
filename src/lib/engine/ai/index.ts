@@ -3,7 +3,7 @@ import type { Board } from '../board';
 import type { Rng } from '../rng';
 import { viewOf, type TargetView } from './view';
 import { huntTarget } from './hunt';
-import { densestShot } from './density';
+import { densestShot, topDensity } from './density';
 
 /** Matches the unit's Level 1 / 2 / 3 difficulty switch. */
 export type Difficulty = 1 | 2 | 3;
@@ -63,6 +63,33 @@ export function chooseShot(board: Board, difficulty: Difficulty, rng: Rng): Coor
 		case 3:
 			return densestShot(view, rng) ?? pickRandom(view, rng);
 	}
+}
+
+/**
+ * Picks a whole volley. The shooter gets no answers until every shot is called,
+ * so levels 1 and 2 choose against a shadow view in which the cells already
+ * called are simply unavailable, and level 3 takes the top of one density map.
+ */
+export function chooseSalvo(
+	board: Board,
+	difficulty: Difficulty,
+	rng: Rng,
+	count: number
+): Coord[] {
+	const view = viewOf(board);
+	if (difficulty === 3) return topDensity(view, count, rng);
+
+	const marks = [...view.marks];
+	const shots: Coord[] = [];
+
+	for (let i = 0; i < count; i++) {
+		const shadow: TargetView = { size: view.size, marks };
+		const shot = difficulty === 1 ? pickRandom(shadow, rng) : huntTarget(shadow, rng);
+		if (!shot) break;
+		shots.push(shot);
+		marks[shot.row * view.size.cols + shot.col] = { kind: 'miss' };
+	}
+	return shots;
 }
 
 export { viewOf, type TargetView } from './view';
