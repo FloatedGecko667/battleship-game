@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boardSize, coordLabel, parseCoord, RANKS } from './edition';
+import { boardSize, coordLabel, parseCoord, phoneticLabel, PHONETIC, RANKS } from './edition';
 
 describe('board sizes', () => {
 	it('is 10x10 for CLASSIC and 14 wide for DELUXE', () => {
@@ -31,5 +31,28 @@ describe('coordinate labels', () => {
 		expect(parseCoord('K1', boardSize('DELUXE'))).toBeNull();
 		expect(parseCoord('A0', boardSize('DELUXE'))).toBeNull();
 		expect(parseCoord('nonsense', boardSize('DELUXE'))).toBeNull();
+	});
+});
+
+describe('phonetic labels', () => {
+	it('spells the rank the way the unit calls it', () => {
+		expect(phoneticLabel(0, 0)).toBe('Alpha 1');
+		expect(phoneticLabel(3, 6)).toBe('Delta 7');
+		expect(phoneticLabel(9, 13)).toBe('Juliet 14');
+	});
+
+	it('covers every rank', () => {
+		expect(RANKS.map((r) => PHONETIC[r])).toEqual([
+			'Alpha',
+			'Bravo',
+			'Charlie',
+			'Delta',
+			'Echo',
+			'Foxtrot',
+			'Golf',
+			'Hotel',
+			'India',
+			'Juliet'
+		]);
 	});
 });

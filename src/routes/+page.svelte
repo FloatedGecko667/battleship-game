@@ -10,6 +10,7 @@
 	import RulesPanel from '$lib/ui/RulesPanel.svelte';
 	import StatusLamps from '$lib/ui/StatusLamps.svelte';
 	import type { Coord } from '$lib/engine/types';
+	import { phoneticLabel, type Edition } from '$lib/engine/edition';
 
 	const game = new Game();
 
@@ -88,7 +89,17 @@
 	<header>
 		<h1>SALVO<span class="slash">//</span>NET</h1>
 		<div class="chips">
-			<span class="chip">{game.edition}</span>
+			<label class="chip select">
+				<select
+					bind:value={game.edition}
+					aria-label="Edition"
+					disabled={game.phase !== 'deploy'}
+					onchange={(e) => game.reset(e.currentTarget.value as Edition)}
+				>
+					<option value="CLASSIC">CLASSIC</option>
+					<option value="DELUXE">DELUXE</option>
+				</select>
+			</label>
 			<span class="chip">{game.size.cols}×{game.size.rows}</span>
 			<label class="chip select">
 				CPU
@@ -120,7 +131,8 @@
 			{#if game.allowance > 1}
 				Salvo: call {game.allowance} targets ({game.pending.length} called).
 			{/if}
-			Arrows move the reticle, <kbd>Enter</kbd> fires, <kbd>M</kbd> mutes.
+			Reticle <strong>{phoneticLabel(game.cursor.row, game.cursor.col)}</strong>.
+			Arrows move it, <kbd>Enter</kbd> fires, <kbd>M</kbd> mutes.
 		</p>
 	{:else}
 		<p class="hint result">
@@ -155,9 +167,12 @@
 		<FleetStatus board={game.playerBoard} title="Own fleet" tone="ally" />
 		<HullCodes board={game.playerBoard} />
 		<RulesPanel
+			edition={game.edition}
+			gameType={game.rules.gameType}
 			house={game.rules.house}
 			locked={game.phase !== 'deploy'}
 			onToggle={(key, value) => game.setHouseRule(key, value)}
+			onGameType={(type) => game.setGameType(type)}
 		/>
 		<Legend />
 		<LogPanel lines={game.log} />

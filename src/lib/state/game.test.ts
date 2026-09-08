@@ -234,3 +234,63 @@ describe('audio wiring', () => {
 		expect(game.log.length).toBeGreaterThan(lines);
 	});
 });
+
+describe('DELUXE edition', () => {
+	it('switches to the 14-wide board and re-deploys both fleets', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+
+		expect(game.size).toEqual({ rows: 10, cols: 14 });
+		expect(untriedCells(viewOf(game.cpuBoard))).toHaveLength(140);
+		expect(game.deploymentValid).toBe(true);
+		expect(game.playerFleet).toHaveLength(5);
+	});
+
+	it('takes salvo from the official game type rather than the house toggle', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+		expect(game.allowance).toBe(1);
+
+		game.setGameType('SALVO');
+		expect(game.allowance).toBe(5);
+	});
+
+	it('grants an extra turn on a hit under MULTI-ATTACK', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+		game.setGameType('MULTI_ATTACK');
+		game.startBattle();
+
+		game.playerFire(cellsOf(game.cpuBoard.ships[0])[0]);
+		expect(game.turn).toBe('player');
+	});
+
+	it('always names a sunk ship, even with SUNK SILENCE ticked', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+		game.setHouseRule('sunkSilence', true);
+		game.startBattle();
+
+		for (const cell of cellsOf(game.cpuBoard.ships[4])) {
+			game.playerFire(cell);
+			vi.runAllTimers();
+		}
+		expect(sunkClasses(viewOf(game.cpuBoard)).size).toBe(1);
+	});
+
+	it('plays to a finish on the wider board', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+		game.startBattle();
+
+		for (const ship of game.cpuBoard.ships) {
+			for (const cell of cellsOf(ship)) {
+				if (game.phase !== 'battle') break;
+				game.playerFire(cell);
+				vi.runAllTimers();
+			}
+		}
+		expect(game.phase).toBe('result');
+		expect(game.winner).toBe('player');
+	});
+});

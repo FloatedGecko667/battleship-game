@@ -16,6 +16,7 @@ import {
 	DEFAULT_RULES,
 	effectiveRules,
 	NO_HOUSE_RULES,
+	type GameType,
 	type HouseRules,
 	type RuleSet
 } from '$lib/engine/ruleset';
@@ -110,6 +111,10 @@ export class Game {
 	/** Shots the player may call this turn. */
 	get allowance() {
 		return shotsPerTurn(this.playerBoard, this.effective);
+	}
+
+	setGameType(gameType: GameType) {
+		this.rules = { ...this.rules, gameType };
 	}
 
 	setHouseRule<K extends keyof HouseRules>(key: K, value: HouseRules[K]) {

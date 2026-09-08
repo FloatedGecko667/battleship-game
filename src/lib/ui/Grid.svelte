@@ -2,7 +2,7 @@
 	import type { Board } from '$lib/engine/board';
 	import { cellIndex, isSunk } from '$lib/engine/board';
 	import { cellsOf } from '$lib/engine/geometry';
-	import { RANKS } from '$lib/engine/edition';
+	import { PHONETIC, RANKS, phoneticLabel } from '$lib/engine/edition';
 	import type { Coord, FleetShip, ShipClass } from '$lib/engine/types';
 	import { BOW_GLYPH, HULL_GLYPH, codeOverlays } from './shipOverlay';
 
@@ -77,7 +77,10 @@
 		{/each}
 
 		{#each Array(rows) as _, row (row)}
-			<div class="rank-head" style="grid-row:{row + 2}">{RANKS[row]}</div>
+			<div class="rank-head" style="grid-row:{row + 2}">
+				<span class="rank">{RANKS[row]}</span>
+				<span class="phonetic">{PHONETIC[RANKS[row]]}</span>
+			</div>
 		{/each}
 
 		<div class="board" style="grid-column:2/-1; grid-row:2/-1">
@@ -97,7 +100,7 @@
 						type="button"
 						disabled={!onFire}
 						style="grid-row:{row + 1}; grid-column:{col + 1}"
-						aria-label={`${RANKS[row]}${col + 1}`}
+						aria-label={phoneticLabel(row, col)}
 						onclick={() => fire(row, col)}
 					>
 						{#if paint}<span class="hull" class:bow={paint.bow}>{paint.glyph}</span>{/if}
@@ -151,10 +154,19 @@
 
 	.file-head,
 	.rank-head {
-		display: grid;
-		place-items: center;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.35rem;
 		font-size: 0.6rem;
 		color: var(--text-dim);
+	}
+
+	/* The NATO rank name only earns its gutter when there is room for it. */
+	.phonetic {
+		display: none;
+		font-size: 0.52rem;
+		letter-spacing: 0.08em;
 	}
 
 	.board {
@@ -267,5 +279,19 @@
 
 	.code.sunk {
 		color: rgba(255, 255, 255, 0.4);
+	}
+	@media (min-width: 1200px) {
+		.frame {
+			grid-template-columns: 4.4rem repeat(var(--cols), var(--cell));
+		}
+
+		.rank-head {
+			justify-content: flex-end;
+			padding-right: 0.4rem;
+		}
+
+		.phonetic {
+			display: inline;
+		}
 	}
 </style>

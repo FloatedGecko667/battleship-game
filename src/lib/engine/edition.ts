@@ -37,6 +37,14 @@ export function coordLabel(row: number, col: number): string {
 	return `${RANKS[row]}${col + 1}`;
 }
 
+/**
+ * "Bravo 5". The unit calls coordinates in the NATO alphabet, and spelling the
+ * rank out also makes screen-reader output unambiguous.
+ */
+export function phoneticLabel(row: number, col: number): string {
+	return `${PHONETIC[RANKS[row]]} ${col + 1}`;
+}
+
 /** Parses "B5" / "b5" back into a zero-based coordinate, or null if malformed. */
 export function parseCoord(label: string, size: BoardSize): { row: number; col: number } | null {
 	const match = /^([A-Ja-j])(\d{1,2})$/.exec(label.trim());

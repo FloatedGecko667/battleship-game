@@ -1,38 +1,75 @@
 <script lang="ts">
 	import {
+		GAME_TYPE_NAME,
 		HOUSE_RULE_BLURB,
 		HOUSE_RULE_NAME,
+		type GameType,
 		type HouseRules
 	} from '$lib/engine/ruleset';
+	import type { Edition } from '$lib/engine/edition';
 	import Panel from './Panel.svelte';
 
 	interface Props {
+		edition: Edition;
+		gameType: GameType;
 		house: HouseRules;
 		/** Rules may only change before the first shot. */
 		locked: boolean;
 		onToggle: (key: keyof HouseRules, value: boolean) => void;
+		onGameType: (gameType: GameType) => void;
 	}
 
-	let { house, locked, onToggle }: Props = $props();
+	let { edition, gameType, house, locked, onToggle, onGameType }: Props = $props();
 
 	const keys = Object.keys(HOUSE_RULE_NAME) as (keyof HouseRules)[];
+	const types = Object.keys(GAME_TYPE_NAME) as GameType[];
+
+	/**
+	 * On DELUXE the official game type drives salvo and the extra turn, and the
+	 * rulebook always names a sunk ship - so those toggles have nothing to say.
+	 */
+	const overridden = $derived<Record<string, boolean>>(
+		edition === 'DELUXE'
+			? { salvo: true, bonusTurn: true, sunkSilence: true, noAdjacency: false }
+			: {}
+	);
 </script>
 
-<Panel title="House Rules">
+<Panel title={edition === 'DELUXE' ? 'Mission' : 'House Rules'}>
+	{#if edition === 'DELUXE'}
+		<fieldset disabled={locked}>
+			<legend>Game type</legend>
+			{#each types as type (type)}
+				<label class="radio">
+					<input
+						type="radio"
+						name="gameType"
+						value={type}
+						checked={gameType === type}
+						onchange={() => onGameType(type)}
+					/>
+					<span class="name">{GAME_TYPE_NAME[type]}</span>
+				</label>
+			{/each}
+		</fieldset>
+	{/if}
+
 	<ul>
 		{#each keys as key (key)}
-			<li>
-				<label>
-					<input
-						type="checkbox"
-						checked={house[key]}
-						disabled={locked}
-						onchange={(e) => onToggle(key, e.currentTarget.checked)}
-					/>
-					<span class="name">{HOUSE_RULE_NAME[key]}</span>
-				</label>
-				<span class="blurb">{HOUSE_RULE_BLURB[key]}</span>
-			</li>
+			{#if !overridden[key]}
+				<li>
+					<label>
+						<input
+							type="checkbox"
+							checked={house[key]}
+							disabled={locked}
+							onchange={(e) => onToggle(key, e.currentTarget.checked)}
+						/>
+						<span class="name">{HOUSE_RULE_NAME[key]}</span>
+					</label>
+					<span class="blurb">{HOUSE_RULE_BLURB[key]}</span>
+				</li>
+			{/if}
 		{/each}
 	</ul>
 	{#if locked}
@@ -41,6 +78,33 @@
 </Panel>
 
 <style>
+	fieldset {
+		border: 0;
+		border-bottom: 1px solid var(--rule-faint);
+		margin: 0 0 0.5rem;
+		padding: 0 0 0.5rem;
+	}
+
+	legend {
+		padding: 0;
+		font-size: 0.62rem;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: var(--text-dim);
+	}
+
+	.radio {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 0.72rem;
+		cursor: pointer;
+	}
+
+	.radio input {
+		accent-color: var(--ally);
+	}
+
 	ul {
 		display: grid;
 		gap: 0.35rem;
