@@ -23,7 +23,9 @@
 	/* Chassis chrome only: the miss lamp. Never used on the board itself. */
 	--lamp-miss: #ffb300;
 
-	--sunk: #8b1024;
+	/* Dimmer than the live enemy red, but still 3.5:1 on the ground - the old
+	   #8b1024 measured 2.2:1 and a sunk hull was barely visible. */
+	--sunk: #c4183a;
 	--text: #e6f7fb;
 	--text-dim: rgba(230, 247, 251, 0.55);
 
@@ -53,6 +55,28 @@ body {
 	-webkit-font-smoothing: antialiased;
 }
 
+/*
+ * A faint scanline wash. Purely decorative, so it is hidden from assistive
+ * tech, never intercepts a click, and disappears under reduced motion.
+ */
+body::after {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	pointer-events: none;
+	background: repeating-linear-gradient(
+		to bottom,
+		rgba(255, 255, 255, 0.022) 0 1px,
+		transparent 1px 3px
+	);
+}
+
+:focus-visible {
+	outline: 2px solid var(--ally);
+	outline-offset: 2px;
+}
+
 /* Neon bloom: a tight halo plus a wide one. */
 .glow-ally {
 	color: var(--ally);
@@ -71,5 +95,10 @@ body {
 		animation-duration: 0.001ms !important;
 		animation-iteration-count: 1 !important;
 		transition-duration: 0.001ms !important;
+	}
+
+	/* Static, but a full-screen stripe pattern is still hostile here. */
+	body::after {
+		display: none;
 	}
 }

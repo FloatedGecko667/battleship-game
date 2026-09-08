@@ -22,7 +22,7 @@
 </script>
 
 <Panel title="Log">
-	<div class="scroll" bind:this={scroller}>
+	<div class="scroll" bind:this={scroller} role="log" aria-live="polite" aria-relevant="additions">
 		{#each lines as line (line.id)}
 			<p class="line" data-side={line.side}>
 				<span class="marker">{line.side === 'player' ? '>' : line.side === 'cpu' ? '<' : '#'}</span>

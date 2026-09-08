@@ -16,6 +16,9 @@
 
 	const game = Game.resume();
 
+	/** Narrow screens show one board at a time; wide ones show both. */
+	let boardTab = $state<'enemy' | 'fleet'>('enemy');
+
 	function onKey(event: KeyboardEvent) {
 		game.unlockAudio();
 
@@ -169,7 +172,23 @@
 		</p>
 	{/if}
 
-	<div class="boards">
+	<div class="board-tabs" role="tablist" aria-label="Boards">
+		<button
+			type="button"
+			role="tab"
+			aria-selected={boardTab === 'enemy'}
+			class:on={boardTab === 'enemy'}
+			onclick={() => (boardTab = 'enemy')}>Enemy waters</button>
+		<button
+			type="button"
+			role="tab"
+			aria-selected={boardTab === 'fleet'}
+			class:on={boardTab === 'fleet'}
+			onclick={() => (boardTab = 'fleet')}>Your fleet</button>
+	</div>
+
+	<div class="boards" data-tab={boardTab}>
+		<div class="slot enemy">
 		<Grid
 			board={game.cpuBoard}
 			tone="enemy"
@@ -186,6 +205,8 @@
 				if (game.phase === 'battle') game.cursor = c;
 			}}
 		/>
+		</div>
+		<div class="slot fleet">
 		<Grid
 			board={game.playerBoard}
 			tone="ally"
@@ -201,6 +222,7 @@
 				if (game.armed === 'ANTI_AIR') game.cursor = c;
 			}}
 		/>
+		</div>
 	</div>
 
 	<div class="panels">
@@ -348,11 +370,48 @@
 		cursor: pointer;
 	}
 
+	.board-tabs {
+		display: none;
+		gap: 0.4rem;
+		margin-bottom: 0.7rem;
+	}
+
+	.board-tabs button {
+		flex: 1;
+		margin: 0;
+		border: 1px solid var(--rule-faint);
+		background: transparent;
+		color: var(--text-dim);
+		font: inherit;
+		font-size: 0.68rem;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		padding: 0.35rem;
+		cursor: pointer;
+	}
+
+	.board-tabs button.on {
+		color: var(--ally);
+		border-color: var(--ally-dim);
+	}
+
 	.boards {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 1.75rem;
 		margin-bottom: 1.5rem;
+	}
+
+	/* Below this width the two boards are a long scroll apart, so show one. */
+	@media (max-width: 900px) {
+		.board-tabs {
+			display: flex;
+		}
+
+		.boards[data-tab='enemy'] .slot.fleet,
+		.boards[data-tab='fleet'] .slot.enemy {
+			display: none;
+		}
 	}
 
 	.panels {

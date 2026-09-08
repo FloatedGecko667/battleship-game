@@ -293,6 +293,30 @@
 	}
 
 	.cross {
+		animation: strike 420ms ease-out 1;
+	}
+
+	@keyframes strike {
+		from {
+			transform: scale(2.4);
+			opacity: 0;
+		}
+		60% {
+			opacity: 1;
+		}
+		to {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}
+
+	.cell:focus-visible {
+		outline: 2px solid var(--neon);
+		outline-offset: -2px;
+		z-index: 1;
+	}
+
+	.cross {
 		font-size: calc(var(--cell) * 0.72);
 	}
 
