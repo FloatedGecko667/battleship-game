@@ -1,11 +1,8 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
+	import '@fontsource-variable/jetbrains-mono';
+	import '$lib/ui/tokens.css';
 
 	let { children } = $props();
 </script>
-
-<svelte:head>
-	<link rel="icon" href={favicon} />
-</svelte:head>
 
 {@render children()}

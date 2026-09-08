@@ -1,0 +1,75 @@
+/* TRON-flavoured terminal palette. Black ground, white rules, neon blue/red. */
+:root {
+	--bg: #000000;
+	--bg-panel: #050708;
+
+	--rule: #ffffff;
+	--rule-dim: rgba(255, 255, 255, 0.35);
+	--rule-faint: rgba(255, 255, 255, 0.14);
+
+	/* Friendly. Also the sonar pin, per the official blue SCAN pegs. */
+	--ally: #00e5ff;
+	--ally-glow: rgba(0, 229, 255, 0.45);
+	--ally-dim: rgba(0, 229, 255, 0.25);
+
+	/* Hostile. Also the hit pin and its cross. */
+	--enemy: #ff2e4c;
+	--enemy-glow: rgba(255, 46, 76, 0.45);
+	--enemy-dim: rgba(255, 46, 76, 0.25);
+
+	/* Hull-code overlay sits on top of the fill and is always white. */
+	--code: #ffffff;
+
+	/* Chassis chrome only: the miss lamp. Never used on the board itself. */
+	--lamp-miss: #ffb300;
+
+	--sunk: #8b1024;
+	--text: #e6f7fb;
+	--text-dim: rgba(230, 247, 251, 0.55);
+
+	--cell: 30px;
+	--font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SFMono-Regular',
+		Menlo, monospace;
+}
+
+@media (max-width: 900px) {
+	:root {
+		--cell: 26px;
+	}
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--font-mono);
+	font-variant-ligatures: none;
+	-webkit-font-smoothing: antialiased;
+}
+
+/* Neon bloom: a tight halo plus a wide one. */
+.glow-ally {
+	color: var(--ally);
+	text-shadow: 0 0 4px var(--ally-glow), 0 0 12px var(--ally-glow);
+}
+
+.glow-enemy {
+	color: var(--enemy);
+	text-shadow: 0 0 4px var(--enemy-glow), 0 0 12px var(--enemy-glow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.001ms !important;
+	}
+}
