@@ -2,8 +2,7 @@ import { boardSize, coordLabel, type Edition } from '$lib/engine/edition';
 import { createBoard, isFleetDestroyed, type Board } from '$lib/engine/board';
 import { randomFleet, rotateWithKick, nudge, canPlace } from '$lib/engine/placement';
 import { fireAt, markScan, other, shotEvents, victoryEvent, type GameEvent } from '$lib/engine/resolve';
-import { huntTarget } from '$lib/engine/ai/hunt';
-import { pickRandom, type Difficulty } from '$lib/engine/ai';
+import { chooseShot, type Difficulty } from '$lib/engine/ai';
 import { mulberry32, type Rng } from '$lib/engine/rng';
 import { shipSpec } from '$lib/engine/fleet';
 import type { Coord, Ship, Side } from '$lib/engine/types';
@@ -175,10 +174,7 @@ export class Game {
 	#cpuTurn() {
 		if (this.phase !== 'battle') return;
 
-		const shot =
-			this.difficulty === 1
-				? pickRandom(this.playerBoard, this.#rng)
-				: huntTarget(this.playerBoard, this.#rng);
+		const shot = chooseShot(this.playerBoard, this.difficulty, this.#rng);
 		if (!shot) return;
 
 		const outcome = fireAt(this.playerBoard, shot);

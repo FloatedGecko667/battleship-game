@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Game } from './game.svelte';
 import { Synth } from '$lib/audio/synth';
 import { FakeAudioContext } from '$lib/audio/fakeContext';
-import { untriedCells } from '$lib/engine/ai';
+import { untriedCells, viewOf } from '$lib/engine/ai';
 import { shipAt } from '$lib/engine/board';
 import { cellsOf } from '$lib/engine/geometry';
 
@@ -29,7 +29,7 @@ describe('turn flow', () => {
 		expect(game.phase).toBe('deploy');
 		expect(game.playerFleet).toHaveLength(5);
 		expect(game.deploymentValid).toBe(true);
-		expect(untriedCells(game.cpuBoard)).toHaveLength(100);
+		expect(untriedCells(viewOf(game.cpuBoard))).toHaveLength(100);
 	});
 
 	it('hands the turn to the CPU and back after a shot', () => {
@@ -42,8 +42,8 @@ describe('turn flow', () => {
 		vi.runAllTimers();
 		expect(game.turn).toBe('player');
 		// One shot each.
-		expect(untriedCells(game.cpuBoard)).toHaveLength(99);
-		expect(untriedCells(game.playerBoard)).toHaveLength(99);
+		expect(untriedCells(viewOf(game.cpuBoard))).toHaveLength(99);
+		expect(untriedCells(viewOf(game.playerBoard))).toHaveLength(99);
 	});
 
 	it('ignores a shot while the CPU is thinking', () => {
@@ -52,7 +52,7 @@ describe('turn flow', () => {
 		game.playerFire({ row: 0, col: 0 });
 
 		game.playerFire({ row: 5, col: 5 });
-		expect(untriedCells(game.cpuBoard)).toHaveLength(99);
+		expect(untriedCells(viewOf(game.cpuBoard))).toHaveLength(99);
 	});
 
 	it('lights the lamp to match the shot', () => {
@@ -64,7 +64,7 @@ describe('turn flow', () => {
 		expect(game.lamp).toBe('hit');
 
 		vi.runAllTimers();
-		const empty = untriedCells(game.cpuBoard).find((c) => !shipAt(game.cpuBoard, c));
+		const empty = untriedCells(viewOf(game.cpuBoard)).find((c) => !shipAt(game.cpuBoard, c));
 		game.playerFire(empty!);
 		expect(game.lamp).toBe('miss');
 	});

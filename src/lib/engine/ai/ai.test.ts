@@ -4,7 +4,7 @@ import { createBoard } from '../board';
 import { fireAt } from '../resolve';
 import { mulberry32 } from '../rng';
 import { randomFleet } from '../placement';
-import { isUntried, liveHits, pickRandom, untriedCells } from './index';
+import { isUntried, liveHits, pickRandom, untriedCells, viewOf } from './index';
 import { huntTarget } from './hunt';
 import type { Ship } from '../types';
 
@@ -17,11 +17,11 @@ function boardWith(ships: Ship[]) {
 describe('untried cells', () => {
 	it('starts with the whole board and shrinks as shots land', () => {
 		const board = boardWith([]);
-		expect(untriedCells(board)).toHaveLength(SIZE.rows * SIZE.cols);
+		expect(untriedCells(viewOf(board))).toHaveLength(SIZE.rows * SIZE.cols);
 
 		fireAt(board, { row: 0, col: 0 });
-		expect(untriedCells(board)).toHaveLength(SIZE.rows * SIZE.cols - 1);
-		expect(isUntried(board, { row: 0, col: 0 })).toBe(false);
+		expect(untriedCells(viewOf(board))).toHaveLength(SIZE.rows * SIZE.cols - 1);
+		expect(isUntried(viewOf(board), { row: 0, col: 0 })).toBe(false);
 	});
 });
 
@@ -29,10 +29,10 @@ describe('liveHits', () => {
 	it('drops the cells of a ship once it is sunk', () => {
 		const board = boardWith([{ class: 'PB', bow: { row: 0, col: 0 }, facing: 'W' }]);
 		fireAt(board, { row: 0, col: 0 });
-		expect(liveHits(board)).toHaveLength(1);
+		expect(liveHits(viewOf(board))).toHaveLength(1);
 
 		fireAt(board, { row: 0, col: 1 });
-		expect(liveHits(board)).toHaveLength(0);
+		expect(liveHits(viewOf(board))).toHaveLength(0);
 	});
 });
 
@@ -42,7 +42,7 @@ describe('huntTarget', () => {
 	it('hunts on a parity lattice while nothing is wounded', () => {
 		const board = boardWith([]);
 		for (let i = 0; i < 30; i++) {
-			const shot = huntTarget(board, rng())!;
+			const shot = huntTarget(viewOf(board), rng())!;
 			expect((shot.row + shot.col) % 2).toBe(0);
 			fireAt(board, shot);
 		}
@@ -52,7 +52,7 @@ describe('huntTarget', () => {
 		const board = boardWith([{ class: 'DD', bow: { row: 4, col: 4 }, facing: 'W' }]);
 		fireAt(board, { row: 4, col: 4 });
 
-		const shot = huntTarget(board, rng())!;
+		const shot = huntTarget(viewOf(board), rng())!;
 		expect(Math.abs(shot.row - 4) + Math.abs(shot.col - 4)).toBe(1);
 	});
 
@@ -61,7 +61,7 @@ describe('huntTarget', () => {
 		fireAt(board, { row: 4, col: 3 });
 		fireAt(board, { row: 4, col: 4 });
 
-		const shot = huntTarget(board, rng())!;
+		const shot = huntTarget(viewOf(board), rng())!;
 		expect(shot.row).toBe(4);
 		expect([2, 5]).toContain(shot.col);
 	});
@@ -73,7 +73,7 @@ describe('huntTarget', () => {
 		const rngInstance = mulberry32(3);
 
 		for (let turn = 0; turn < SIZE.rows * SIZE.cols; turn++) {
-			const shot = huntTarget(board, rngInstance);
+			const shot = huntTarget(viewOf(board), rngInstance);
 			if (!shot) break;
 			const key = `${shot.row},${shot.col}`;
 			expect(seen.has(key)).toBe(false);
@@ -88,7 +88,7 @@ describe('huntTarget', () => {
 describe('pickRandom', () => {
 	it('returns null once the board is exhausted', () => {
 		const board = boardWith([]);
-		for (const cell of untriedCells(board)) fireAt(board, cell);
-		expect(pickRandom(board, mulberry32(0))).toBeNull();
+		for (const cell of untriedCells(viewOf(board))) fireAt(board, cell);
+		expect(pickRandom(viewOf(board), mulberry32(0))).toBeNull();
 	});
 });

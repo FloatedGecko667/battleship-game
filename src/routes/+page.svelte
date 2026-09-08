@@ -89,7 +89,14 @@
 		<div class="chips">
 			<span class="chip">{game.edition}</span>
 			<span class="chip">{game.size.cols}×{game.size.rows}</span>
-			<span class="chip">CPU {DIFFICULTY_NAME[game.difficulty]}</span>
+			<label class="chip select">
+				CPU
+				<select bind:value={game.difficulty} aria-label="CPU difficulty">
+					{#each [1, 2, 3] as const as level (level)}
+						<option value={level}>{DIFFICULTY_NAME[level]}</option>
+					{/each}
+				</select>
+			</label>
 			<button
 				class="chip toggle"
 				type="button"
@@ -207,6 +214,27 @@
 		padding: 0 0.25rem;
 		font: inherit;
 		font-size: 0.68rem;
+		color: var(--text);
+	}
+
+	.chip.select {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.chip.select select {
+		background: transparent;
+		border: 0;
+		color: var(--ally);
+		font: inherit;
+		font-size: 0.62rem;
+		letter-spacing: 0.14em;
+		cursor: pointer;
+	}
+
+	.chip.select option {
+		background: var(--bg-panel);
 		color: var(--text);
 	}
 
