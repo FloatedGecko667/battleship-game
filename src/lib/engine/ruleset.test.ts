@@ -23,7 +23,8 @@ describe('effectiveRules', () => {
 			extraTurnOnHit: true,
 			extraTurnOnScan: false,
 			noAdjacency: false,
-			sunkSilence: true
+			sunkSilence: true,
+			advancedWeapons: false
 		});
 	});
 
@@ -41,6 +42,16 @@ describe('effectiveRules', () => {
 			rules({ edition: 'DELUXE', house: { ...NO_HOUSE_RULES, sunkSilence: true } })
 		);
 		expect(eff.sunkSilence).toBe(false);
+	});
+});
+
+describe('advanced weapons switch', () => {
+	it('is available on DELUXE only', () => {
+		expect(effectiveRules(rules({ edition: 'DELUXE', weapons: 'ADVANCED' })).advancedWeapons).toBe(
+			true
+		);
+		// The special weapons come from the tie-in unit, so CLASSIC never has them.
+		expect(effectiveRules(rules({ weapons: 'ADVANCED' })).advancedWeapons).toBe(false);
 	});
 });
 

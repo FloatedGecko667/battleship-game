@@ -14,11 +14,15 @@
 		revealShips: boolean;
 		cursor?: Coord | null;
 		onFire?: (coord: Coord) => void;
+		/** Moves the reticle, so the aim preview tracks the pointer too. */
+		onHover?: (coord: Coord) => void;
 		label?: string;
 		/** Hull class being positioned during deployment, highlighted on the board. */
 		highlight?: ShipClass | null;
 		/** Cells called but not yet answered, while a salvo is assembled. */
 		pending?: readonly Coord[];
+		/** Footprint of the weapon currently being aimed. */
+		aim?: readonly Coord[];
 	}
 
 	let {
@@ -27,12 +31,15 @@
 		revealShips,
 		cursor = null,
 		onFire,
+		onHover,
 		label,
 		highlight = null,
-		pending = []
+		pending = [],
+		aim = []
 	}: Props = $props();
 
 	const pendingKeys = $derived(new Set(pending.map((c) => `${c.row},${c.col}`)));
+	const aimKeys = $derived(new Set(aim.map((c) => `${c.row},${c.col}`)));
 
 	const cols = $derived(board.size.cols);
 	const rows = $derived(board.size.rows);
@@ -97,11 +104,13 @@
 						class:sunk={paint?.sunk}
 						class:selected={highlight !== null && paint?.cls === highlight}
 						class:pending={pendingKeys.has(`${row},${col}`)}
+						class:aimed={aimKeys.has(`${row},${col}`)}
 						type="button"
 						disabled={!onFire}
 						style="grid-row:{row + 1}; grid-column:{col + 1}"
 						aria-label={phoneticLabel(row, col)}
 						onclick={() => fire(row, col)}
+						onpointerenter={() => onHover?.({ row, col })}
 					>
 						{#if paint}<span class="hull" class:bow={paint.bow}>{paint.glyph}</span>{/if}
 						{#if mark?.kind === 'miss'}<span class="pin miss">●</span>{/if}
@@ -218,6 +227,13 @@
 	.hull.bow {
 		opacity: 1;
 		text-shadow: 0 0 4px var(--neon-glow), 0 0 10px var(--neon-glow);
+	}
+
+	/* Footprint of the weapon being aimed. */
+	.cell.aimed {
+		background: color-mix(in srgb, var(--enemy) 22%, transparent);
+		outline: 1px solid var(--enemy-dim);
+		outline-offset: -1px;
 	}
 
 	/* A called-but-unanswered salvo shot. */

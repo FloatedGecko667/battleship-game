@@ -12,13 +12,27 @@ import {
 	type GameEvent
 } from '$lib/engine/resolve';
 import { chooseSalvo, type Difficulty } from '$lib/engine/ai';
+import { chooseWeapon } from '$lib/engine/ai/weaponChoice';
+import {
+	availableWeapons,
+	emptyArsenal,
+	fireWeapon,
+	previewCells,
+	roundsLeft,
+	weaponSpec,
+	type Arsenal,
+	type WeaponId,
+	type WeaponUse
+} from '$lib/engine/weapons/index';
+import type { Orientation } from '$lib/engine/weapons/patterns';
 import {
 	DEFAULT_RULES,
 	effectiveRules,
 	NO_HOUSE_RULES,
 	type GameType,
 	type HouseRules,
-	type RuleSet
+	type RuleSet,
+	type Weapons
 } from '$lib/engine/ruleset';
 import { mulberry32, type Rng } from '$lib/engine/rng';
 import { shipSpec } from '$lib/engine/fleet';
@@ -69,6 +83,12 @@ export class Game {
 	rules = $state<RuleSet>({ ...DEFAULT_RULES, house: { ...NO_HOUSE_RULES } });
 	/** Cells called but not yet answered, while a salvo is being assembled. */
 	pending = $state<Coord[]>([]);
+	/** Rounds spent, per weapon, for each side. */
+	playerArsenal = $state<Arsenal>(emptyArsenal());
+	cpuArsenal = $state<Arsenal>(emptyArsenal());
+	/** The weapon the player is aiming, if any. */
+	armed = $state<WeaponId | null>(null);
+	orientation = $state<Orientation>('H');
 
 	playerFleet = $state<Ship[]>([]);
 	playerBoard = $state<Board>(createBoard(boardSize('CLASSIC'), []));
@@ -115,6 +135,38 @@ export class Game {
 
 	setGameType(gameType: GameType) {
 		this.rules = { ...this.rules, gameType };
+	}
+
+	setWeapons(weapons: Weapons) {
+		this.rules = { ...this.rules, weapons };
+		if (weapons === 'BASIC') this.armed = null;
+	}
+
+	get weaponsOnOffer() {
+		if (!this.effective.advancedWeapons) return [];
+		return availableWeapons(this.playerBoard, this.playerArsenal);
+	}
+
+	roundsFor(id: WeaponId) {
+		return roundsLeft(weaponSpec(id), this.playerArsenal);
+	}
+
+	arm(id: WeaponId | null) {
+		this.armed = this.armed === id ? null : id;
+		this.pending = [];
+	}
+
+	toggleOrientation() {
+		this.orientation = this.orientation === 'H' ? 'V' : 'H';
+	}
+
+	/** Cells the armed weapon would touch if fired at the reticle. */
+	get aimPreview(): Coord[] {
+		if (!this.armed) return [];
+		return previewCells(
+			{ weapon: this.armed, at: this.cursor, orientation: this.orientation },
+			this.cpuBoard
+		);
 	}
 
 	setHouseRule<K extends keyof HouseRules>(key: K, value: HouseRules[K]) {
@@ -214,8 +266,33 @@ export class Game {
 	 * answered once it is complete, which is what stops the player from steering
 	 * later shots with the results of earlier ones.
 	 */
+	/** Fires the armed special weapon at the reticle. */
+	fireArmed(coord: Coord) {
+		if (this.phase !== 'battle' || this.turn !== 'player' || !this.armed) return;
+		this.cursor = coord;
+
+		const use: WeaponUse = { weapon: this.armed, at: coord, orientation: this.orientation };
+		const outcome = fireWeapon(this.cpuBoard, use, 'player', !this.effective.sunkSilence);
+		if (!outcome.fired) {
+			this.#say('system', 'That launch point is not on the grid edge.');
+			return;
+		}
+
+		this.playerArsenal = { ...this.playerArsenal, [this.armed]: this.playerArsenal[this.armed] + 1 };
+		this.armed = null;
+
+		this.#emit(outcome.events);
+		this.cpuBoard = { ...this.cpuBoard };
+		this.#afterPlayerTurn(outcome.events);
+	}
+
 	playerFire(coord: Coord) {
 		if (this.phase !== 'battle' || this.turn !== 'player') return;
+		this.cursor = coord;
+		if (this.armed) {
+			this.fireArmed(coord);
+			return;
+		}
 		if (markAt(this.cpuBoard, coord)?.kind === 'hit') return;
 		if (markAt(this.cpuBoard, coord)?.kind === 'miss') return;
 
@@ -242,7 +319,10 @@ export class Game {
 		}
 		this.#emit(events);
 		this.cpuBoard = { ...this.cpuBoard };
+		this.#afterPlayerTurn(events);
+	}
 
+	#afterPlayerTurn(events: GameEvent[]) {
 		if (this.#checkVictory('player', this.cpuBoard)) return;
 
 		if (earnsExtraTurn(events, this.effective)) {
@@ -257,6 +337,28 @@ export class Game {
 	#cpuTurn() {
 		if (this.phase !== 'battle') return;
 
+		if (this.effective.advancedWeapons && this.difficulty === 3) {
+			const use = chooseWeapon(this.playerBoard, this.cpuBoard, this.cpuArsenal, this.#rng);
+			if (use) {
+				const outcome = fireWeapon(
+					this.playerBoard,
+					use,
+					'cpu',
+					!this.effective.sunkSilence
+				);
+				if (outcome.fired) {
+					this.cpuArsenal = {
+						...this.cpuArsenal,
+						[use.weapon]: this.cpuArsenal[use.weapon] + 1
+					};
+					this.#emit(outcome.events);
+					this.playerBoard = { ...this.playerBoard };
+					this.#afterCpuTurn(outcome.events);
+					return;
+				}
+			}
+		}
+
 		const count = shotsPerTurn(this.cpuBoard, this.effective);
 		const volley = chooseSalvo(this.playerBoard, this.difficulty, this.#rng, count);
 		if (!volley.length) return;
@@ -268,7 +370,10 @@ export class Game {
 		}
 		this.#emit(events);
 		this.playerBoard = { ...this.playerBoard };
+		this.#afterCpuTurn(events);
+	}
 
+	#afterCpuTurn(events: GameEvent[]) {
 		if (this.#checkVictory('cpu', this.playerBoard)) return;
 
 		if (earnsExtraTurn(events, this.effective)) {

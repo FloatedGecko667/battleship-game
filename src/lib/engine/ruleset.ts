@@ -22,16 +22,21 @@ export const NO_HOUSE_RULES: HouseRules = {
 	sunkSilence: false
 };
 
+/** DELUXE lets a turn spend a ship's special weapon instead of a plain shot. */
+export type Weapons = 'BASIC' | 'ADVANCED';
+
 export interface RuleSet {
 	edition: Edition;
 	/** Ignored on CLASSIC, which uses the house toggles instead. */
 	gameType: GameType;
+	weapons: Weapons;
 	house: HouseRules;
 }
 
 export const DEFAULT_RULES: RuleSet = {
 	edition: 'CLASSIC',
 	gameType: 'CLASSIC',
+	weapons: 'BASIC',
 	house: NO_HOUSE_RULES
 };
 
@@ -49,6 +54,8 @@ export interface EffectiveRules {
 	noAdjacency: boolean;
 	/** Suppresses the sunk announcement, so the shooter is never told. */
 	sunkSilence: boolean;
+	/** Special weapons are on the table. DELUXE only. */
+	advancedWeapons: boolean;
 }
 
 /**
@@ -63,7 +70,8 @@ export function effectiveRules(rules: RuleSet): EffectiveRules {
 			extraTurnOnHit: rules.gameType === 'MULTI_ATTACK',
 			extraTurnOnScan: rules.gameType === 'MULTI_ATTACK',
 			noAdjacency: rules.house.noAdjacency,
-			sunkSilence: false
+			sunkSilence: false,
+			advancedWeapons: rules.weapons === 'ADVANCED'
 		};
 	}
 
@@ -72,7 +80,9 @@ export function effectiveRules(rules: RuleSet): EffectiveRules {
 		extraTurnOnHit: rules.house.bonusTurn,
 		extraTurnOnScan: false,
 		noAdjacency: rules.house.noAdjacency,
-		sunkSilence: rules.house.sunkSilence
+		sunkSilence: rules.house.sunkSilence,
+		// The special weapons come from the tie-in unit, so CLASSIC never has them.
+		advancedWeapons: false
 	};
 }
 
@@ -80,6 +90,11 @@ export const GAME_TYPE_NAME: Record<GameType, string> = {
 	CLASSIC: 'Classic',
 	MULTI_ATTACK: 'Multi-Attack',
 	SALVO: 'Salvo'
+};
+
+export const WEAPONS_NAME: Record<Weapons, string> = {
+	BASIC: 'Basic',
+	ADVANCED: 'Advanced'
 };
 
 export const HOUSE_RULE_NAME: Record<keyof HouseRules, string> = {

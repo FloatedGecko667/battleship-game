@@ -294,3 +294,136 @@ describe('DELUXE edition', () => {
 		expect(game.winner).toBe('player');
 	});
 });
+
+describe('advanced weapons', () => {
+	it('moves the reticle to the cell that was clicked, so the preview matches', () => {
+		const made = makeGame();
+		made.game.reset('DELUXE');
+		made.game.setWeapons('ADVANCED');
+		made.game.startBattle();
+		made.game.arm('BB_MISSILE');
+
+		// The preview follows the reticle; firing elsewhere must bring it along.
+		made.game.cursor = { row: 0, col: 0 };
+		made.game.playerFire({ row: 5, col: 5 });
+		expect(made.game.cursor).toEqual({ row: 5, col: 5 });
+	});
+
+	function deluxeAdvanced() {
+		const made = makeGame();
+		made.game.reset('DELUXE');
+		made.game.setWeapons('ADVANCED');
+		return made;
+	}
+
+	it('offers nothing on CLASSIC, which has no special weapons', () => {
+		const { game } = makeGame();
+		game.setWeapons('ADVANCED');
+		expect(game.weaponsOnOffer).toHaveLength(0);
+	});
+
+	it('offers nothing under Basic weapons', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+		expect(game.weaponsOnOffer).toHaveLength(0);
+	});
+
+	it('offers all four while the fleet is intact', () => {
+		const { game } = deluxeAdvanced();
+		expect(game.weaponsOnOffer.map((w) => w.id).sort()).toEqual([
+			'BB_MISSILE',
+			'DD_MISSILE',
+			'DE_HOMING',
+			'DE_SONAR'
+		]);
+	});
+
+	it('spends the battleship missile and resolves nine cells', () => {
+		const { game } = deluxeAdvanced();
+		game.startBattle();
+		game.cursor = { row: 5, col: 5 };
+		game.arm('BB_MISSILE');
+		expect(game.aimPreview).toHaveLength(9);
+
+		game.playerFire({ row: 5, col: 5 });
+		expect(game.roundsFor('BB_MISSILE')).toBe(0);
+		expect(untriedCells(viewOf(game.cpuBoard))).toHaveLength(140 - 9);
+		// Firing disarms, so the next click is an ordinary shot.
+		expect(game.armed).toBeNull();
+	});
+
+	it('withdraws a weapon when its ship goes down', () => {
+		const { game } = deluxeAdvanced();
+		game.startBattle();
+		expect(game.weaponsOnOffer.map((w) => w.id)).toContain('BB_MISSILE');
+
+		const bb = game.playerBoard.ships.find((s) => s.class === 'BB')!;
+		for (const cell of cellsOf(bb)) fireAt(game.playerBoard, cell);
+		game.playerBoard = { ...game.playerBoard };
+
+		expect(game.weaponsOnOffer.map((w) => w.id)).not.toContain('BB_MISSILE');
+	});
+
+	it('takes both escort weapons away together', () => {
+		const { game } = deluxeAdvanced();
+		const de = game.playerBoard.ships.find((s) => s.class === 'DE')!;
+		for (const cell of cellsOf(de)) fireAt(game.playerBoard, cell);
+		game.playerBoard = { ...game.playerBoard };
+
+		const ids = game.weaponsOnOffer.map((w) => w.id);
+		expect(ids).not.toContain('DE_HOMING');
+		expect(ids).not.toContain('DE_SONAR');
+	});
+
+	it('never runs the sonar dry and never damages anything with it', () => {
+		const { game } = deluxeAdvanced();
+		game.startBattle();
+
+		for (let i = 0; i < 4; i++) {
+			game.arm('DE_SONAR');
+			game.playerFire({ row: 5, col: 2 + i });
+			vi.runAllTimers();
+		}
+		expect(game.roundsFor('DE_SONAR')).toBe(Infinity);
+		expect(game.cpuBoard.ships.every((s) => !s.hits.some(Boolean))).toBe(true);
+	});
+
+	it('refuses a homing launch off the edge without spending a round', () => {
+		const { game } = deluxeAdvanced();
+		game.startBattle();
+		game.arm('DE_HOMING');
+
+		game.playerFire({ row: 5, col: 5 });
+		expect(game.roundsFor('DE_HOMING')).toBe(2);
+		expect(game.turn).toBe('player');
+		expect(game.log.at(-1)?.text).toContain('grid edge');
+	});
+
+	it('flips the firing axis for the aim preview', () => {
+		const { game } = deluxeAdvanced();
+		game.startBattle();
+		game.cursor = { row: 5, col: 5 };
+		game.arm('DD_MISSILE');
+
+		const horizontal = game.aimPreview;
+		game.toggleOrientation();
+		const vertical = game.aimPreview;
+
+		expect(horizontal.every((c) => c.row === 5)).toBe(true);
+		expect(vertical.every((c) => c.col === 5)).toBe(true);
+	});
+
+	it('lets ADMIRAL reach for a weapon of its own', () => {
+		const { game } = deluxeAdvanced();
+		game.difficulty = 3;
+		game.startBattle();
+
+		for (let turn = 0; turn < 25 && game.phase === 'battle'; turn++) {
+			const cell = untriedCells(viewOf(game.cpuBoard))[0];
+			game.playerFire(cell);
+			vi.runAllTimers();
+		}
+		const spent = Object.values(game.cpuArsenal).reduce((a, b) => a + b, 0);
+		expect(spent).toBeGreaterThan(0);
+	});
+});

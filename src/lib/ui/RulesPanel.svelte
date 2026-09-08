@@ -3,8 +3,10 @@
 		GAME_TYPE_NAME,
 		HOUSE_RULE_BLURB,
 		HOUSE_RULE_NAME,
+		WEAPONS_NAME,
 		type GameType,
-		type HouseRules
+		type HouseRules,
+		type Weapons
 	} from '$lib/engine/ruleset';
 	import type { Edition } from '$lib/engine/edition';
 	import Panel from './Panel.svelte';
@@ -17,12 +19,16 @@
 		locked: boolean;
 		onToggle: (key: keyof HouseRules, value: boolean) => void;
 		onGameType: (gameType: GameType) => void;
+		weapons: Weapons;
+		onWeapons: (weapons: Weapons) => void;
 	}
 
-	let { edition, gameType, house, locked, onToggle, onGameType }: Props = $props();
+	let { edition, gameType, house, locked, onToggle, onGameType, weapons, onWeapons }: Props =
+		$props();
 
 	const keys = Object.keys(HOUSE_RULE_NAME) as (keyof HouseRules)[];
 	const types = Object.keys(GAME_TYPE_NAME) as GameType[];
+	const weaponModes = Object.keys(WEAPONS_NAME) as Weapons[];
 
 	/**
 	 * On DELUXE the official game type drives salvo and the extra turn, and the
@@ -49,6 +55,22 @@
 						onchange={() => onGameType(type)}
 					/>
 					<span class="name">{GAME_TYPE_NAME[type]}</span>
+				</label>
+			{/each}
+		</fieldset>
+
+		<fieldset disabled={locked}>
+			<legend>Weapons</legend>
+			{#each weaponModes as mode (mode)}
+				<label class="radio">
+					<input
+						type="radio"
+						name="weapons"
+						value={mode}
+						checked={weapons === mode}
+						onchange={() => onWeapons(mode)}
+					/>
+					<span class="name">{WEAPONS_NAME[mode]}</span>
 				</label>
 			{/each}
 		</fieldset>

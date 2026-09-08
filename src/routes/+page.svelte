@@ -8,6 +8,7 @@
 	import LogPanel from '$lib/ui/LogPanel.svelte';
 	import FleetStatus from '$lib/ui/FleetStatus.svelte';
 	import RulesPanel from '$lib/ui/RulesPanel.svelte';
+	import WeaponBar from '$lib/ui/WeaponBar.svelte';
 	import StatusLamps from '$lib/ui/StatusLamps.svelte';
 	import type { Coord } from '$lib/engine/types';
 	import { phoneticLabel, type Edition } from '$lib/engine/edition';
@@ -60,6 +61,22 @@
 		}
 
 		if (game.phase === 'battle') {
+			if (event.key === 'p' || event.key === 'P') {
+				game.toggleOrientation();
+				event.preventDefault();
+				return;
+			}
+			const slot = Number(event.key);
+			if (slot >= 1 && slot <= game.weaponsOnOffer.length) {
+				game.arm(game.weaponsOnOffer[slot - 1].id);
+				event.preventDefault();
+				return;
+			}
+			if (event.key === 'Escape') {
+				game.arm(null);
+				event.preventDefault();
+				return;
+			}
 			const delta = step[event.key];
 			if (delta) {
 				game.cursor = {
@@ -132,6 +149,11 @@
 				Salvo: call {game.allowance} targets ({game.pending.length} called).
 			{/if}
 			Reticle <strong>{phoneticLabel(game.cursor.row, game.cursor.col)}</strong>.
+			{#if game.armed}
+				Aiming <strong>{game.armed}</strong> — <kbd>Esc</kbd> stands down.
+			{:else if game.weaponsOnOffer.length}
+				<kbd>1</kbd>–<kbd>{game.weaponsOnOffer.length}</kbd> arms a weapon.
+			{/if}
 			Arrows move it, <kbd>Enter</kbd> fires, <kbd>M</kbd> mutes.
 		</p>
 	{:else}
@@ -149,9 +171,13 @@
 			label="Enemy waters"
 			cursor={game.phase === 'battle' ? game.cursor : null}
 			pending={game.pending}
+			aim={game.aimPreview}
 			onFire={game.phase === 'battle' && game.turn === 'player'
 				? (c) => game.playerFire(c)
 				: undefined}
+			onHover={(c) => {
+				if (game.phase === 'battle') game.cursor = c;
+			}}
 		/>
 		<Grid
 			board={game.playerBoard}
@@ -166,6 +192,14 @@
 		<FleetStatus board={game.cpuBoard} title="Enemy fleet" tone="enemy" />
 		<FleetStatus board={game.playerBoard} title="Own fleet" tone="ally" />
 		<HullCodes board={game.playerBoard} />
+		<WeaponBar
+			weapons={game.weaponsOnOffer}
+			armed={game.armed}
+			orientation={game.orientation}
+			rounds={(id) => game.roundsFor(id)}
+			onArm={(id) => game.arm(id)}
+			onOrientation={() => game.toggleOrientation()}
+		/>
 		<RulesPanel
 			edition={game.edition}
 			gameType={game.rules.gameType}
@@ -173,6 +207,8 @@
 			locked={game.phase !== 'deploy'}
 			onToggle={(key, value) => game.setHouseRule(key, value)}
 			onGameType={(type) => game.setGameType(type)}
+			weapons={game.rules.weapons}
+			onWeapons={(w) => game.setWeapons(w)}
 		/>
 		<Legend />
 		<LogPanel lines={game.log} />
