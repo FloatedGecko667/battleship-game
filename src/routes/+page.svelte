@@ -14,7 +14,7 @@
 	import type { Coord } from '$lib/engine/types';
 	import { phoneticLabel, type Edition } from '$lib/engine/edition';
 
-	const game = new Game();
+	const game = Game.resume();
 
 	function onKey(event: KeyboardEvent) {
 		game.unlockAudio();
@@ -133,9 +133,14 @@
 				aria-pressed={game.muted}
 				onclick={() => game.toggleMute()}
 			>{game.muted ? 'MUTED' : 'SOUND'}</button>
+			<button class="chip toggle" type="button" onclick={() => game.reset()}>NEW</button>
 			<StatusLamps lamp={game.lamp} />
 		</div>
 	</header>
+
+	{#if game.resumed && game.phase === 'battle'}
+		<p class="hint resumed">Picked up where you left off.</p>
+	{/if}
 
 	{#if game.phase === 'deploy'}
 		<p class="hint">
@@ -284,6 +289,11 @@
 
 	.hint.result {
 		color: var(--text);
+	}
+
+	.hint.resumed {
+		color: var(--ally);
+		margin-bottom: 0.4rem;
 	}
 
 	kbd {

@@ -21,7 +21,7 @@ export default defineConfig({
 				name: 'SALVO//NET',
 				short_name: 'SALVO//NET',
 				description: 'A TRON-flavoured terminal battleship game. Plays fully offline.',
-				lang: 'ja',
+				lang: 'en',
 				start_url: '/',
 				scope: '/',
 				display: 'standalone',

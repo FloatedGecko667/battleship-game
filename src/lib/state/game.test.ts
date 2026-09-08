@@ -608,3 +608,143 @@ describe('rulebook formations', () => {
 		expect(game.presetId).toBeNull();
 	});
 })
+
+describe('resuming an interrupted game', () => {
+	it('restores the position, the damage and the log', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+		game.startBattle();
+		game.playerFire({ row: 3, col: 3 });
+		vi.runAllTimers();
+		game.playerFire({ row: 4, col: 4 });
+		vi.runAllTimers();
+
+		const snapshot = JSON.parse(JSON.stringify(game.snapshot()));
+		const fresh = makeGame(999).game;
+		fresh.restore(snapshot);
+
+		expect(fresh.edition).toBe('DELUXE');
+		expect(fresh.phase).toBe('battle');
+		expect(fresh.cpuBoard.marks).toEqual(game.cpuBoard.marks);
+		expect(fresh.playerBoard.ships).toEqual(game.playerBoard.ships);
+		expect(fresh.log.map((l) => l.text)).toEqual(game.log.map((l) => l.text));
+		expect(fresh.resumed).toBe(true);
+	});
+
+	it('keeps the rules and the spent ammunition', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+		game.setWeapons('ADVANCED');
+		game.setGameType('MULTI_ATTACK');
+		game.startBattle();
+		game.arm('BB_MISSILE');
+		game.playerFire({ row: 5, col: 5 });
+
+		const fresh = makeGame(999).game;
+		fresh.restore(JSON.parse(JSON.stringify(game.snapshot())));
+
+		expect(fresh.rules.weapons).toBe('ADVANCED');
+		expect(fresh.rules.gameType).toBe('MULTI_ATTACK');
+		expect(fresh.roundsFor('BB_MISSILE')).toBe(0);
+	});
+
+	it('does not stall when the save was taken on the CPU turn', () => {
+		const { game } = makeGame();
+		game.startBattle();
+		game.playerFire({ row: 0, col: 0 });
+		expect(game.turn).toBe('cpu');
+
+		const fresh = makeGame(999).game;
+		fresh.restore(JSON.parse(JSON.stringify(game.snapshot())));
+		expect(fresh.turn).toBe('cpu');
+
+		// Without a nudge on restore the game would sit here forever.
+		vi.runAllTimers();
+		expect(fresh.turn).toBe('player');
+	});
+
+	it('carries the flight across, wherever the planes were', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+		game.setWeapons('ADVANCED');
+		game.startBattle();
+		game.arm('CV_AIRCRAFT');
+		game.playerFire({ row: 6, col: 6 });
+
+		const fresh = makeGame(999).game;
+		fresh.restore(JSON.parse(JSON.stringify(game.snapshot())));
+
+		expect(fresh.playerFlight[0].at).toEqual({ row: 6, col: 6 });
+		expect(fresh.playerFlight[0].armed).toBe(game.playerFlight[0].armed);
+	});
+
+	it('starts clean again after New game', () => {
+		const { game } = makeGame();
+		game.startBattle();
+		game.playerFire({ row: 0, col: 0 });
+
+		game.reset();
+		expect(game.phase).toBe('deploy');
+		expect(game.resumed).toBe(false);
+		expect(untriedCells(viewOf(game.cpuBoard))).toHaveLength(100);
+	});
+})
+
+describe('Game.resume', () => {
+	function withStorage() {
+		const map = new Map<string, string>();
+		vi.stubGlobal('localStorage', {
+			getItem: (k: string) => map.get(k) ?? null,
+			setItem: (k: string, v: string) => void map.set(k, v),
+			removeItem: (k: string) => void map.delete(k)
+		});
+		return map;
+	}
+
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('picks the saved game back up', () => {
+		withStorage();
+		const first = makeGame().game;
+		first.startBattle();
+		first.playerFire({ row: 2, col: 2 });
+		vi.runAllTimers();
+
+		// Constructing a Game clears the save, so resume() must read it first.
+		const resumed = Game.resume(999, first.synthForTest);
+		expect(resumed.phase).toBe('battle');
+		expect(resumed.resumed).toBe(true);
+		expect(resumed.cpuBoard.marks).toEqual(first.cpuBoard.marks);
+	});
+
+	it('leaves the save in place so a second reload still resumes', () => {
+		withStorage();
+		const first = makeGame().game;
+		first.startBattle();
+		first.playerFire({ row: 2, col: 2 });
+		vi.runAllTimers();
+
+		const once = Game.resume(999, first.synthForTest);
+		const twice = Game.resume(998, first.synthForTest);
+		expect(twice.resumed).toBe(true);
+		expect(twice.cpuBoard.marks).toEqual(once.cpuBoard.marks);
+	});
+
+	it('starts fresh when nothing was saved', () => {
+		withStorage();
+		const game = Game.resume(7, makeGame().synth);
+		expect(game.phase).toBe('deploy');
+		expect(game.resumed).toBe(false);
+	});
+
+	it('starts fresh after New game clears the save', () => {
+		withStorage();
+		const first = makeGame().game;
+		first.startBattle();
+		first.playerFire({ row: 2, col: 2 });
+		vi.runAllTimers();
+		first.reset();
+
+		expect(Game.resume(999, first.synthForTest).resumed).toBe(false);
+	});
+})

@@ -47,7 +47,16 @@ import {
 import { mulberry32, type Rng } from '$lib/engine/rng';
 import { shipSpec } from '$lib/engine/fleet';
 import { cellsOf } from '$lib/engine/geometry';
-import { FORMATIONS, FORMATION_IDS, type FormationId } from '$lib/data/formations';
+import { FORMATIONS, type FormationId } from '$lib/data/formations';
+import {
+	boardSnapshot,
+	clearSnapshot,
+	readSnapshot,
+	restoreBoard,
+	writeSnapshot,
+	SNAPSHOT_VERSION,
+	type Snapshot
+} from '$lib/engine/persist';
 import type { Coord, Ship, Side } from '$lib/engine/types';
 import type { LogLine } from '$lib/ui/LogPanel.svelte';
 import { Synth } from '$lib/audio/synth';
@@ -109,6 +118,8 @@ export class Game {
 	activePlane = $state(0);
 	/** Set while the fleet came from a rulebook formation rather than by hand. */
 	presetId = $state<FormationId | null>(null);
+	/** True when this session picked up an interrupted game. */
+	resumed = $state(false);
 
 	playerFleet = $state<Ship[]>([]);
 	playerBoard = $state<Board>(createBoard(boardSize('CLASSIC'), []));
@@ -124,6 +135,84 @@ export class Game {
 		this.#synth = synth;
 		this.muted = synth.muted;
 		this.reset();
+	}
+
+	/**
+	 * Picks up an interrupted game, or starts a fresh one.
+	 *
+	 * The save is read first on purpose: constructing a Game runs reset(), which
+	 * clears the save, so reading afterwards would always find nothing.
+	 */
+	static resume(seed = Date.now(), synth = new Synth()): Game {
+		const saved = readSnapshot();
+		const game = new Game(seed, synth);
+		if (saved) game.restore(saved);
+		return game;
+	}
+
+	snapshot(): Snapshot {
+		return {
+			version: SNAPSHOT_VERSION,
+			edition: this.edition,
+			rules: structuredClone($state.snapshot(this.rules)),
+			difficulty: this.difficulty,
+			phase: this.phase,
+			turn: this.turn,
+			winner: this.winner,
+			cursor: { ...this.cursor },
+			pending: this.pending.map((c) => ({ ...c })),
+			playerBoard: boardSnapshot($state.snapshot(this.playerBoard) as Board),
+			cpuBoard: boardSnapshot($state.snapshot(this.cpuBoard) as Board),
+			playerFlight: structuredClone($state.snapshot(this.playerFlight)) as Aircraft[],
+			cpuFlight: structuredClone($state.snapshot(this.cpuFlight)) as Aircraft[],
+			playerArsenal: { ...this.playerArsenal },
+			cpuArsenal: { ...this.cpuArsenal },
+			log: this.log.map((line) => ({ ...line }))
+		};
+	}
+
+	restore(saved: Snapshot) {
+		this.edition = saved.edition;
+		this.rules = saved.rules;
+		this.difficulty = saved.difficulty;
+		this.phase = saved.phase;
+		this.turn = saved.turn;
+		this.winner = saved.winner;
+		this.cursor = saved.cursor;
+		this.pending = saved.pending;
+		this.playerBoard = restoreBoard(this.size, saved.playerBoard);
+		this.cpuBoard = restoreBoard(this.size, saved.cpuBoard);
+		this.playerFleet = this.playerBoard.ships.map((ship) => ({
+			class: ship.class,
+			bow: { ...ship.bow },
+			facing: ship.facing
+		}));
+		this.playerFlight = saved.playerFlight;
+		this.cpuFlight = saved.cpuFlight;
+		this.playerArsenal = saved.playerArsenal;
+		this.cpuArsenal = saved.cpuArsenal;
+		this.log = saved.log;
+		this.#logId = (saved.log.at(-1)?.id ?? 0) + 1;
+		this.armed = null;
+		this.presetId = null;
+		this.resumed = true;
+
+		// Constructing this Game cleared the stored save, so put it back.
+		this.#checkpoint();
+
+		// A save taken mid-CPU-turn would otherwise stall the game forever.
+		if (this.phase === 'battle' && this.turn === 'cpu') {
+			setTimeout(() => this.#cpuTurn(), 420);
+		}
+	}
+
+	/** Exposed so tests can hand the same silent synth to a resumed game. */
+	get synthForTest() {
+		return this.#synth;
+	}
+
+	#save() {
+		writeSnapshot(this.snapshot());
 	}
 
 	/** Browsers only allow a context to start inside a gesture. */
@@ -236,6 +325,8 @@ export class Game {
 		this.selected = 0;
 		this.cursor = { row: 0, col: 0 };
 		this.log = [];
+		this.resumed = false;
+		clearSnapshot();
 		this.#say('system', 'Deploy your fleet. R rotates, arrows move, Enter confirms.');
 	}
 
@@ -334,6 +425,7 @@ export class Game {
 		this.turn = 'player';
 		this.pending = [];
 		this.#say('system', 'Fleet on station. Awaiting orders.');
+		this.#save();
 	}
 
 	// ---- battle -----------------------------------------------------------
@@ -466,6 +558,7 @@ export class Game {
 		}
 
 		this.turn = 'cpu';
+		this.#checkpoint();
 		setTimeout(() => this.#cpuTurn(), 420);
 	}
 
@@ -519,6 +612,7 @@ export class Game {
 		}
 
 		this.turn = 'player';
+		this.#checkpoint();
 	}
 
 	/** A plane still on deck is lost when the cell under it is hit. */
@@ -549,6 +643,7 @@ export class Game {
 		this.#emit([event]);
 		this.winner = shooter;
 		this.phase = 'result';
+		this.#save();
 		return isFleetDestroyed(target);
 	}
 
@@ -580,6 +675,11 @@ export class Game {
 
 	#say(side: LogLine['side'], text: string) {
 		this.log = [...this.log, { id: this.#logId++, side, text }].slice(-120);
+	}
+
+	/** Called after anything that changes the position, so a reload resumes it. */
+	#checkpoint() {
+		if (this.phase === 'battle' || this.phase === 'result') this.#save();
 	}
 }
 
