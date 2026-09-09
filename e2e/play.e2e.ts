@@ -158,3 +158,48 @@ test('an interrupted game is picked up after a reload', async ({ page }) => {
 	await expect(page.locator('.hint.resumed')).toBeVisible();
 	expect(await logLines(page).allTextContents()).toEqual(before);
 });
+
+test('the weapons panel says which setting is hiding the arsenal', async ({ page }) => {
+	await fresh(page);
+	const panel = page
+		.locator('.panel')
+		.filter({ has: page.locator('.title', { hasText: /^Weapons$/ }) });
+
+	// CLASSIC has no special weapons at all.
+	await expect(panel).toContainText('Set Edition to DELUXE');
+
+	await setEdition(page, 'DELUXE');
+	await expect(panel).toContainText('Choose Advanced');
+
+	await page.getByRole('radio', { name: 'Advanced' }).check();
+	// The number that arms each weapon is on its button.
+	await expect(panel.getByRole('button', { name: /1\s+BB\s+Missile/ })).toBeVisible();
+	await expect(panel).toContainText('once the battle starts');
+});
+
+test('an armed weapon points at the board it wants', async ({ page }) => {
+	await fresh(page);
+	await setEdition(page, 'DELUXE');
+	await page.getByRole('radio', { name: 'Advanced' }).check();
+	await commitFleet(page);
+
+	const enemyLabel = page.locator('.label').filter({ hasText: 'Enemy waters' });
+	const ownLabel = page.locator('.label').filter({ hasText: 'Your fleet' });
+
+	await page.locator('body').press('1'); // the battleship missile
+	await expect(enemyLabel).toContainText('fire here');
+	await expect(ownLabel).not.toContainText('fire here');
+
+	// Anti-aircraft fire is aimed at your own grid instead.
+	await page.locator('body').press('5');
+	await expect(ownLabel).toContainText('fire here');
+	await expect(enemyLabel).not.toContainText('fire here');
+
+	// And the enemy board must not accept it: the coordinate would be read
+	// against the wrong ocean.
+	await expect(enemyCells(page).nth(20)).toBeDisabled();
+	await expect(ownCells(page).nth(20)).toBeEnabled();
+
+	await page.locator('body').press('Escape');
+	await expect(ownLabel).not.toContainText('fire here');
+});

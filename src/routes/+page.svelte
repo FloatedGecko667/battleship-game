@@ -194,11 +194,12 @@
 			pending={game.pending}
 			aim={game.armed === 'ANTI_AIR' ? [] : game.aimPreview}
 			aircraft={game.playerFlight.filter((p) => p.alive && p.at).map((p) => p.at!)}
-			onFire={game.phase === 'battle' && game.turn === 'player'
+			targeted={game.aimingAt === 'enemy'}
+			onFire={game.phase === 'battle' && game.turn === 'player' && game.aimingAt !== 'own'
 				? (c) => game.playerFire(c)
 				: undefined}
 			onHover={(c) => {
-				if (game.phase === 'battle') game.cursor = c;
+				if (game.phase === 'battle' && game.aimingAt !== 'own') game.cursor = c;
 			}}
 		/>
 		</div>
@@ -210,12 +211,13 @@
 			label="Your fleet"
 			highlight={game.phase === 'deploy' ? game.playerFleet[game.selected]?.class : null}
 			aircraft={game.playerFlight.filter((p) => p.alive && !p.at).map((p) => p.home)}
-			aim={game.armed === 'ANTI_AIR' ? game.aimPreview : game.movePreview('ahead')}
-			onFire={game.armed === 'ANTI_AIR' && game.turn === 'player'
+			targeted={game.aimingAt === 'own'}
+			aim={game.aimingAt === 'own' ? game.aimPreview : game.movePreview('ahead')}
+			onFire={game.aimingAt === 'own' && game.turn === 'player'
 				? (c) => game.fireOwnWaters(c)
 				: undefined}
 			onHover={(c) => {
-				if (game.armed === 'ANTI_AIR') game.cursor = c;
+				if (game.aimingAt === 'own') game.cursor = c;
 			}}
 		/>
 		</div>
@@ -244,6 +246,8 @@
 			flight={game.flightReady}
 			activePlane={game.activePlane}
 			onSelectPlane={(i) => game.selectPlane(i)}
+			reason={game.weaponsUnavailableReason}
+			inBattle={game.phase === 'battle'}
 		/>
 		{#if game.phase === 'deploy' && game.presetsAvailable}
 			<FormationPicker selected={game.presetId} onPick={(id) => game.usePreset(id)} />

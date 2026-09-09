@@ -25,6 +25,8 @@
 		aim?: readonly Coord[];
 		/** Aircraft to draw on this board, parked or hovering. */
 		aircraft?: readonly Coord[];
+		/** Marks this board as the one the armed weapon is asking for. */
+		targeted?: boolean;
 	}
 
 	let {
@@ -38,7 +40,8 @@
 		highlight = null,
 		pending = [],
 		aim = [],
-		aircraft = []
+		aircraft = [],
+		targeted = false
 	}: Props = $props();
 
 	const pendingKeys = $derived(new Set(pending.map((c) => `${c.row},${c.col}`)));
@@ -79,7 +82,11 @@
 </script>
 
 <div class="wrap" data-tone={tone}>
-	{#if label}<p class="label">{label}</p>{/if}
+	{#if label}
+		<p class="label" class:targeted>
+			{label}{#if targeted}<span class="cue"> ◀ fire here</span>{/if}
+		</p>
+	{/if}
 
 	<div class="frame" style="--cols:{cols}; --rows:{rows}">
 		<div class="corner"></div>
@@ -158,6 +165,15 @@
 		letter-spacing: 0.2em;
 		text-transform: uppercase;
 		color: var(--neon);
+	}
+
+	.label.targeted {
+		color: var(--enemy);
+		text-shadow: 0 0 6px var(--enemy-glow);
+	}
+
+	.cue {
+		letter-spacing: 0.08em;
 	}
 
 	.frame {

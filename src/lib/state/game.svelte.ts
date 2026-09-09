@@ -275,6 +275,23 @@ export class Game {
 		this.pending = [];
 	}
 
+	/** Which board the armed weapon is aimed at, for the interface to point at. */
+	get aimingAt(): 'enemy' | 'own' | null {
+		if (!this.armed) return null;
+		return weaponSpec(this.armed).ownWaters ? 'own' : 'enemy';
+	}
+
+	/**
+	 * Why the weapons list is empty, so the interface can say what to do about
+	 * it rather than only that there is nothing there.
+	 */
+	get weaponsUnavailableReason(): 'edition' | 'basic' | 'ships' | null {
+		if (this.weaponsOnOffer.length) return null;
+		if (this.edition !== 'DELUXE') return 'edition';
+		if (this.rules.weapons !== 'ADVANCED') return 'basic';
+		return 'ships';
+	}
+
 	toggleOrientation() {
 		this.orientation = this.orientation === 'H' ? 'V' : 'H';
 		this.pattern = this.pattern === 'PLUS' ? 'X' : 'PLUS';
@@ -508,6 +525,10 @@ export class Game {
 	/** Fires the armed special weapon at the reticle. */
 	fireArmed(coord: Coord) {
 		if (this.phase !== 'battle' || this.turn !== 'player' || !this.armed) return;
+		// Anti-aircraft fire is aimed at your own grid, where the enemy's planes
+		// hover. Reaching it from the enemy board would read the coordinate
+		// against the wrong ocean entirely, so it has to come via fireOwnWaters.
+		if (weaponSpec(this.armed).ownWaters) return;
 		this.cursor = coord;
 
 		if (isCarrierWeapon(this.armed)) {

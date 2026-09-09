@@ -14,6 +14,10 @@
 		flight: Aircraft[];
 		activePlane: number;
 		onSelectPlane: (index: number) => void;
+		/** Why the list is empty, so the panel can say what to do about it. */
+		reason: 'edition' | 'basic' | 'ships' | null;
+		/** Weapons can be armed only once the shooting starts. */
+		inBattle: boolean;
 	}
 
 	let {
@@ -25,7 +29,9 @@
 		onOrientation,
 		flight,
 		activePlane,
-		onSelectPlane
+		onSelectPlane,
+		reason,
+		inBattle
 	}: Props = $props();
 
 	const armedSpec = $derived(weapons.find((w) => w.id === armed) ?? null);
@@ -35,12 +41,35 @@
 
 <Panel title="Weapons">
 	{#if weapons.length === 0}
-		<p class="none">No special weapons. Their ships are gone, or the mission is Basic.</p>
+		<!-- Say where to go, not just that there is nothing here. -->
+		{#if reason === 'edition'}
+			<p class="none">
+				Special weapons belong to the Deluxe game.
+				<strong>Set Edition to DELUXE</strong> at the top of the page.
+			</p>
+		{:else if reason === 'basic'}
+			<p class="none">
+				This mission is running Basic weapons.
+				<strong>Choose Advanced</strong> under Weapons in the Mission panel, before the
+				battle starts.
+			</p>
+		{:else}
+			<p class="none">
+				Every ship that carried a special weapon has been sunk. Nothing left to fire.
+			</p>
+		{/if}
 	{:else}
 		<ul>
-			{#each weapons as weapon (weapon.id)}
+			{#each weapons as weapon, index (weapon.id)}
 				<li>
-					<button type="button" class:armed={armed === weapon.id} onclick={() => onArm(weapon.id)}>
+					<button
+						type="button"
+						class:armed={armed === weapon.id}
+						disabled={!inBattle}
+						onclick={() => onArm(weapon.id)}
+					>
+						<!-- The number key that arms it, so the binding is visible. -->
+						<span class="key">{index + 1}</span>
 						<span class="ship">{weapon.ship}</span>
 						<span class="name">{weapon.name}</span>
 						<span class="rounds">{rounds(weapon.id) === Infinity ? '∞' : rounds(weapon.id)}</span>
@@ -76,16 +105,23 @@
 				Pattern: {orientation === 'H' ? '+' : '✕'} — press P to switch
 			</button>
 		{/if}
-		{#if armedSpec}
-			<p class="hint">
-				{armedSpec.aim === 'edge'
-					? 'Pick a launch cell on the grid edge.'
-					: armedSpec.aim === 'sweep'
-						? 'Pick where the plane should search over enemy water.'
-						: armedSpec.ownWaters
-							? 'Pick a cell in your own waters where a plane may be overhead.'
-							: 'Pick the centre of the strike.'}
+		{#if !inBattle}
+			<p class="guidance">Ready to arm once the battle starts.</p>
+		{:else if armedSpec}
+			<p class="guidance armed-hint">
+				{#if armedSpec.ownWaters}
+					Click <strong>your own board</strong> where you think an enemy plane is overhead.
+				{:else if armedSpec.aim === 'edge'}
+					Click a cell on the <strong>edge</strong> of the enemy board to launch from.
+				{:else if armedSpec.aim === 'sweep'}
+					Click the <strong>enemy board</strong> where the plane should search.
+				{:else}
+					Click the <strong>enemy board</strong> at the centre of the strike.
+				{/if}
+				<span class="dim">Esc stands down.</span>
 			</p>
+		{:else}
+			<p class="guidance">Press <kbd>1</kbd>–<kbd>{weapons.length}</kbd>, or pick one above.</p>
 		{/if}
 	{/if}
 </Panel>
@@ -118,6 +154,16 @@
 		border-color: var(--enemy);
 		color: var(--enemy);
 		box-shadow: 0 0 8px var(--enemy-glow);
+	}
+
+	.key {
+		width: 1ch;
+		color: var(--text-dim);
+		font-size: 0.62rem;
+	}
+
+	button.armed .key {
+		color: var(--enemy);
 	}
 
 	.ship {
@@ -157,10 +203,35 @@
 		justify-content: center;
 	}
 
-	.hint,
+	.guidance,
 	.none {
 		margin: 0.4rem 0 0;
 		font-size: 0.64rem;
 		color: var(--text-dim);
+		line-height: 1.5;
+	}
+
+	.none strong {
+		color: var(--ally);
+	}
+
+	.armed-hint {
+		color: var(--text);
+	}
+
+	.armed-hint strong {
+		color: var(--enemy);
+	}
+
+	.dim {
+		color: var(--text-dim);
+	}
+
+	kbd {
+		border: 1px solid var(--rule-faint);
+		padding: 0 0.25rem;
+		font: inherit;
+		font-size: 0.62rem;
+		color: var(--text);
 	}
 </style>

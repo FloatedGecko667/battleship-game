@@ -866,3 +866,75 @@ describe('MOBILE FLEET', () => {
 		expect(game.phase).toBe('result');
 	});
 })
+
+describe('finding and firing the special weapons', () => {
+	function deluxeAdvanced() {
+		const made = makeGame();
+		made.game.reset('DELUXE');
+		made.game.setWeapons('ADVANCED');
+		return made;
+	}
+
+	it('says which setting is in the way, not just that the list is empty', () => {
+		const { game } = makeGame();
+		expect(game.weaponsUnavailableReason).toBe('edition');
+
+		game.reset('DELUXE');
+		expect(game.weaponsUnavailableReason).toBe('basic');
+
+		game.setWeapons('ADVANCED');
+		expect(game.weaponsUnavailableReason).toBeNull();
+	});
+
+	it('blames the sunk ships once the arsenal is genuinely gone', () => {
+		const { game } = deluxeAdvanced();
+		for (const ship of game.playerBoard.ships) {
+			for (const cell of cellsOf(ship)) fireAt(game.playerBoard, cell);
+		}
+		game.playerBoard = { ...game.playerBoard };
+		expect(game.weaponsUnavailableReason).toBe('ships');
+	});
+
+	it('names the board an armed weapon is asking for', () => {
+		const { game } = deluxeAdvanced();
+		game.startBattle();
+		expect(game.aimingAt).toBeNull();
+
+		game.arm('BB_MISSILE');
+		expect(game.aimingAt).toBe('enemy');
+
+		game.arm('ANTI_AIR');
+		expect(game.aimingAt).toBe('own');
+	});
+
+	/**
+	 * Anti-aircraft coordinates are read against your own grid, so letting the
+	 * enemy board fire them reported on the wrong ocean entirely.
+	 */
+	it('refuses anti-aircraft fire aimed at the enemy board', () => {
+		const { game } = deluxeAdvanced();
+		game.startBattle();
+
+		const spot = { row: 6, col: 6 };
+		game.cpuFlight[0].at = spot;
+		game.arm('ANTI_AIR');
+
+		// The enemy-board path must do nothing at all.
+		game.playerFire(spot);
+		expect(game.cpuFlight[0].alive).toBe(true);
+		expect(game.armed).toBe('ANTI_AIR');
+		expect(game.turn).toBe('player');
+
+		// The own-waters path still works.
+		game.fireOwnWaters(spot);
+		expect(game.cpuFlight[0].alive).toBe(false);
+	});
+
+	it('leaves the other weapons firing from the enemy board as before', () => {
+		const { game } = deluxeAdvanced();
+		game.startBattle();
+		game.arm('BB_MISSILE');
+		game.playerFire({ row: 5, col: 5 });
+		expect(game.roundsFor('BB_MISSILE')).toBe(0);
+	});
+})
