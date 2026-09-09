@@ -106,18 +106,25 @@
 	<header>
 		<h1>Firing Solution<span class="caret" aria-hidden="true">▮</span></h1>
 		<div class="chips">
-			<label class="chip select">
+			<label
+				class="chip select"
+				title={game.phase === 'deploy'
+					? 'CLASSIC is 10×10; DELUXE is 14×10 with the advanced weapons.'
+					: 'The edition sets the board size, so it is fixed once a battle starts. Press NEW to change it.'}
+			>
+				EDITION
+				<!-- One-way on purpose: a two-way binding wrote `edition` behind
+				     reset()'s back, leaving the board size and the boards out of step. -->
 				<select
-					bind:value={game.edition}
+					value={game.edition}
 					aria-label="Edition"
 					disabled={game.phase !== 'deploy'}
 					onchange={(e) => game.reset(e.currentTarget.value as Edition)}
 				>
-					<option value="CLASSIC">CLASSIC</option>
-					<option value="DELUXE">DELUXE</option>
+					<option value="CLASSIC">CLASSIC — 10×10</option>
+					<option value="DELUXE">DELUXE — 14×10</option>
 				</select>
 			</label>
-			<span class="chip">{game.size.cols}×{game.size.rows}</span>
 			<label class="chip select">
 				CPU
 				<select bind:value={game.difficulty} aria-label="CPU difficulty">

@@ -938,3 +938,56 @@ describe('finding and firing the special weapons', () => {
 		expect(game.roundsFor('BB_MISSILE')).toBe(0);
 	});
 })
+
+describe('the board follows the edition', () => {
+	it('is 10x10 for CLASSIC and 14x10 for DELUXE', () => {
+		const { game } = makeGame();
+		expect(game.size).toEqual({ rows: 10, cols: 10 });
+		expect(untriedCells(viewOf(game.cpuBoard))).toHaveLength(100);
+
+		game.reset('DELUXE');
+		expect(game.size).toEqual({ rows: 10, cols: 14 });
+		expect(untriedCells(viewOf(game.cpuBoard))).toHaveLength(140);
+	});
+
+	it('switches back and forth without leaving anything behind', () => {
+		const { game } = makeGame();
+		for (const edition of ['DELUXE', 'CLASSIC', 'DELUXE', 'CLASSIC'] as const) {
+			game.reset(edition);
+			const expected = edition === 'DELUXE' ? 14 : 10;
+			expect(game.size.cols).toBe(expected);
+			expect(game.playerBoard.size.cols).toBe(expected);
+			expect(game.cpuBoard.size.cols).toBe(expected);
+			expect(game.playerBoard.marks).toHaveLength(expected * 10);
+			expect(game.deploymentValid).toBe(true);
+		}
+	});
+
+	/**
+	 * `size` used to be read off the `edition` field, so anything that set the
+	 * field without rebuilding the boards left the interface drawing a 10-wide
+	 * grid over a 14-wide one.
+	 */
+	it('reports the board it actually has, not the edition it was told', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+		game.startBattle();
+
+		game.edition = 'CLASSIC';
+
+		expect(game.size).toEqual({ rows: 10, cols: 14 });
+		expect(game.size).toEqual(game.playerBoard.size);
+		expect(game.size).toEqual(game.cpuBoard.size);
+	});
+
+	it('carries the size across a resume', () => {
+		const { game } = makeGame();
+		game.reset('DELUXE');
+		game.startBattle();
+
+		const fresh = makeGame(999).game;
+		fresh.restore(JSON.parse(JSON.stringify(game.snapshot())));
+		expect(fresh.size).toEqual({ rows: 10, cols: 14 });
+		expect(fresh.cpuBoard.marks).toHaveLength(140);
+	});
+})

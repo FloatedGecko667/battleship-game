@@ -190,8 +190,11 @@ export class Game {
 		this.winner = saved.winner;
 		this.cursor = saved.cursor;
 		this.pending = saved.pending;
-		this.playerBoard = restoreBoard(this.size, saved.playerBoard);
-		this.cpuBoard = restoreBoard(this.size, saved.cpuBoard);
+		// Sized from the save, not from `this.size` - that still describes the
+		// board this Game was constructed with, which is the one being replaced.
+		const size = boardSize(saved.edition);
+		this.playerBoard = restoreBoard(size, saved.playerBoard);
+		this.cpuBoard = restoreBoard(size, saved.cpuBoard);
 		this.playerFleet = this.playerBoard.ships.map((ship) => ({
 			class: ship.class,
 			bow: { ...ship.bow },
@@ -239,8 +242,13 @@ export class Game {
 		play(this.#synth, 'cursor');
 	}
 
+	/**
+	 * Taken from the board itself, not from `edition`. Deriving it from the
+	 * field let the two drift: anything that set `edition` without rebuilding
+	 * the boards left the interface drawing a 10x10 grid over a 14-wide one.
+	 */
 	get size() {
-		return boardSize(this.edition);
+		return this.playerBoard.size;
 	}
 
 	get effective() {
