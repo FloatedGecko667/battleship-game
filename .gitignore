@@ -32,3 +32,4 @@ docs/*.pdf
 
 # Playwright run artefacts
 /playwright-report
+.env*

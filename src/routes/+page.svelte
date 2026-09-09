@@ -102,11 +102,6 @@
 
 <svelte:window onkeydown={onKey} onpointerdown={() => game.unlockAudio()} />
 
-<svelte:head>
-	<title>Firing Solution</title>
-	<meta name="description" content="Work out where the enemy fleet is, one shot at a time." />
-</svelte:head>
-
 <main>
 	<header>
 		<h1>Firing Solution<span class="caret" aria-hidden="true">▮</span></h1>

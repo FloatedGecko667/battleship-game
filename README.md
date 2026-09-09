@@ -13,6 +13,8 @@ one, until the enemy fleet's position falls out of the evidence.
   - `CLASSIC` — the familiar 10×10 game
   - `DELUXE` — a 10×14 board with per-ship advanced weapons, carrier aircraft and sonar
 
+Play it: <https://firing-solution-a469twq4m-koutarou-soga-s-projects.vercel.app>
+
 See [PLAN.md](./PLAN.md) for the full design, rule breakdown and implementation order.
 
 ## Development
@@ -37,6 +39,17 @@ a rule or re-run the deployment-formation extractor.
 
 This project uses the *rules* (not protected by copyright) but none of the
 BATTLESHIP / Hasbro / Universal names, logos, artwork, ship names or voice lines.
+
+## Deploying
+
+The build is entirely static, so `adapter-static` stays in place and nothing is
+tied to one host. [vercel.json](./vercel.json) only points Vercel at `build/`
+and adds an SPA rewrite; `sw.js` and the manifest are served must-revalidate so
+an update is picked up rather than cached indefinitely.
+
+```bash
+vercel deploy --prod
+```
 
 ## Licence
 
