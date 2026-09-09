@@ -26,7 +26,9 @@ export interface NoiseSpec {
 	at?: number;
 }
 
-const STORAGE_KEY = 'salvonet.audio';
+const STORAGE_KEY = 'firingsolution.audio';
+/** Read as a fallback so the mute setting survives the rename. */
+const LEGACY_STORAGE_KEYS = ['salvonet.audio'];
 
 function resolveCtor(explicit?: AudioContextCtor): AudioContextCtor | null {
 	if (explicit) return explicit;
@@ -187,7 +189,10 @@ export class Synth {
 
 	#restore() {
 		try {
-			const raw = globalThis.localStorage?.getItem(STORAGE_KEY);
+			const store = globalThis.localStorage;
+			const raw = [STORAGE_KEY, ...LEGACY_STORAGE_KEYS]
+				.map((key) => store?.getItem(key))
+				.find(Boolean);
 			if (!raw) return;
 			const saved = JSON.parse(raw) as { muted?: boolean; volume?: number };
 			if (typeof saved.muted === 'boolean') this.muted = saved.muted;

@@ -103,13 +103,13 @@
 <svelte:window onkeydown={onKey} onpointerdown={() => game.unlockAudio()} />
 
 <svelte:head>
-	<title>SALVO//NET</title>
-	<meta name="description" content="An offline terminal battleship game." />
+	<title>Firing Solution</title>
+	<meta name="description" content="Work out where the enemy fleet is, one shot at a time." />
 </svelte:head>
 
 <main>
 	<header>
-		<h1>SALVO<span class="slash">//</span>NET</h1>
+		<h1>Firing Solution<span class="caret" aria-hidden="true">▮</span></h1>
 		<div class="chips">
 			<label class="chip select">
 				<select
@@ -293,9 +293,19 @@
 		text-shadow: 0 0 6px var(--ally-glow), 0 0 18px var(--ally-glow);
 	}
 
-	.slash {
+	/* A terminal caret, in the hostile red. Blinking is dropped under the
+	   reduced-motion rule in tokens.css. */
+	.caret {
+		margin-left: 0.4em;
 		color: var(--enemy);
 		text-shadow: 0 0 6px var(--enemy-glow);
+		animation: blink 1.1s step-end infinite;
+	}
+
+	@keyframes blink {
+		50% {
+			opacity: 0;
+		}
 	}
 
 	.chips {

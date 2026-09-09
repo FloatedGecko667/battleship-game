@@ -10,7 +10,7 @@ async function fresh(page: Page) {
 	await page.goto('/');
 	await page.evaluate(() => localStorage.clear());
 	await page.reload();
-	await expect(page.getByRole('heading', { name: /SALVO/ })).toBeVisible();
+	await expect(page.getByRole('heading', { name: /Firing Solution/ })).toBeVisible();
 }
 
 const enemyCells = (page: Page) => page.locator('.board').first().locator('.cell');

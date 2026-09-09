@@ -18,9 +18,9 @@ export default defineConfig({
 		SvelteKitPWA({
 			registerType: 'autoUpdate',
 			manifest: {
-				name: 'SALVO//NET',
-				short_name: 'SALVO//NET',
-				description: 'A TRON-flavoured terminal battleship game. Plays fully offline.',
+				name: 'Firing Solution',
+				short_name: 'Firing Solution',
+				description: 'Work out where the enemy fleet is, one shot at a time. Plays fully offline.',
 				lang: 'en',
 				start_url: '/',
 				scope: '/',

@@ -22,7 +22,7 @@
 "BATTLESHIP" / Hasbro / Universal の名称・ロゴ・映画意匠・艦船デザインは使わない。
 公式の固有艦名（Red Japanese Destroyer、Flagship、Red Storm Stinger 等）と
 **音声セリフの文言**も流用せず、米海軍の船体分類記号ベースの一般名・独自の文言に置き換える。
-アプリ名は独自のものにする（暫定コードネーム: **`SALVO//NET`**、変更可）。
+アプリ名は独自のものにする（**`Firing Solution`** — 直接見えない目標に命中させるための諸元を指す実在の用語で、本作の行為そのもの）。
 
 ---
 

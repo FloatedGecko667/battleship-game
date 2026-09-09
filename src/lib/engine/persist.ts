@@ -5,7 +5,10 @@ import type { RuleSet } from './ruleset';
 import type { Arsenal } from './weapons/index';
 import type { Aircraft } from './weapons/aircraft';
 
-const KEY = 'salvonet.game';
+const KEY = 'firingsolution.game';
+
+/** Read as a fallback so a game saved under the old name is not orphaned. */
+const LEGACY_KEYS = ['salvonet.game'];
 
 /** Bumped whenever the shape below changes, so stale saves are dropped. */
 export const SNAPSHOT_VERSION = 1;
@@ -49,6 +52,8 @@ export function restoreBoard(size: Board['size'], snapshot: BoardSnapshot): Boar
 	};
 }
 
+const KEY_ORDER = [KEY, ...LEGACY_KEYS];
+
 type Storage = Pick<globalThis.Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 function storage(): Storage | null {
@@ -74,7 +79,7 @@ export function writeSnapshot(snapshot: Snapshot, store: Storage | null = storag
 export function readSnapshot(store: Storage | null = storage()): Snapshot | null {
 	if (!store) return null;
 	try {
-		const raw = store.getItem(KEY);
+		const raw = KEY_ORDER.map((key) => store.getItem(key)).find(Boolean);
 		if (!raw) return null;
 		const parsed = JSON.parse(raw) as Snapshot;
 		// A save from an older shape would restore into nonsense, so drop it.
@@ -88,7 +93,7 @@ export function readSnapshot(store: Storage | null = storage()): Snapshot | null
 
 export function clearSnapshot(store: Storage | null = storage()): void {
 	try {
-		store?.removeItem(KEY);
+		for (const key of KEY_ORDER) store?.removeItem(key);
 	} catch {
 		// Nothing to do: the save is unreachable either way.
 	}

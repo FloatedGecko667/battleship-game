@@ -1,6 +1,10 @@
-# SALVO//NET
+# Firing Solution
 
 A terminal-flavoured battleship game that runs entirely offline as a PWA.
+
+A *firing solution* is the data a gun needs to hit something it cannot see
+directly. That is the whole game: every shot is a guess refined by the last
+one, until the enemy fleet's position falls out of the evidence.
 
 - **Stack**: SvelteKit (Svelte 5 runes) + `adapter-static` SPA + `@vite-pwa/sveltekit`
 - **Look**: black ground, white rules, neon blue (friendly) and neon red (hostile), JetBrains Mono

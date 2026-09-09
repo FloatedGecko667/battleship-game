@@ -80,13 +80,16 @@ describe('storage', () => {
 
 	it('drops a save that is missing its fleets', () => {
 		const store = fakeStore({
-			'salvonet.game': JSON.stringify({ version: SNAPSHOT_VERSION, playerBoard: { ships: [] } })
+			'firingsolution.game': JSON.stringify({
+				version: SNAPSHOT_VERSION,
+				playerBoard: { ships: [] }
+			})
 		});
 		expect(readSnapshot(store)).toBeNull();
 	});
 
 	it('survives corrupt JSON rather than throwing', () => {
-		const store = fakeStore({ 'salvonet.game': '{not json' });
+		const store = fakeStore({ 'firingsolution.game': '{not json' });
 		expect(() => readSnapshot(store)).not.toThrow();
 		expect(readSnapshot(store)).toBeNull();
 	});
@@ -106,6 +109,26 @@ describe('storage', () => {
 		expect(writeSnapshot(snap(), null)).toBe(false);
 		expect(readSnapshot(null)).toBeNull();
 		expect(() => clearSnapshot(null)).not.toThrow();
+	});
+
+	/** The app was renamed, and a game in progress should not be lost to it. */
+	it('still reads a game saved under the old name', () => {
+		const store = fakeStore({ 'salvonet.game': JSON.stringify(snap()) });
+		expect(readSnapshot(store)?.version).toBe(SNAPSHOT_VERSION);
+	});
+
+	it('prefers the current key when both are present', () => {
+		const store = fakeStore({
+			'salvonet.game': JSON.stringify(snap({ turn: 'cpu' })),
+			'firingsolution.game': JSON.stringify(snap({ turn: 'player' }))
+		});
+		expect(readSnapshot(store)?.turn).toBe('player');
+	});
+
+	it('clears the old key too, so New game really starts clean', () => {
+		const store = fakeStore({ 'salvonet.game': JSON.stringify(snap()) });
+		clearSnapshot(store);
+		expect(readSnapshot(store)).toBeNull();
 	});
 
 	it('clears a saved game', () => {
