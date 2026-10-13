@@ -72,6 +72,13 @@ export function hullCode(cls: ShipClass): string {
 	return shipSpec(cls).code;
 }
 
+/**
+ * MOBILE FLEET: how many cells each ship may sail over a whole game. Without a
+ * limit a hull that keeps running can dodge forever - about 1 game in 50 never
+ * finished - so fuel guarantees the fleet eventually holds still.
+ */
+export const MOBILE_FUEL = 3;
+
 /** Total hull cells across a fleet. Both editions come to 5 + 4 + 3 + 3 + 2 = 17. */
 export function fleetCells(edition: Edition): number {
 	return FLEETS[edition].reduce((sum, spec) => sum + spec.length, 0);

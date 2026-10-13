@@ -106,7 +106,9 @@ export const en = {
 		none: 'Nothing can get under way. Damaged ships hold their position.',
 		astern: '◀ Astern',
 		ahead: 'Ahead ▶',
-		note: "Moving is the turn's action — you do not also fire."
+		note: "Moving is the turn's action — you do not also fire.",
+		fuel: (n: number) => `${n} left`,
+		fuelAria: (n: number) => `${n} moves of fuel left`
 	},
 
 	weapons: {
@@ -187,7 +189,7 @@ export const en = {
 			salvo: 'Fire once per surviving ship.',
 			sunkSilence: 'Sinkings are never announced.',
 			mobileFleet:
-				'Once a turn, move one undamaged ship a cell along its axis. A miss goes stale.'
+				'Once a turn, move one undamaged ship a cell along its axis. Each ship has 3 moves a game, and a miss goes stale.'
 		} as Record<keyof HouseRules, string>,
 		locked: 'Locked once the battle starts.'
 	},

@@ -95,3 +95,28 @@ describe('the density map with stale misses', () => {
 		expect(at(densityMap(withFleet(board, 999)), 5, 5)).toBe(0);
 	});
 });
+
+describe('sweeping when no untried water is left', () => {
+	it('goes for the oldest stale miss first, not the densest', () => {
+		const board = empty();
+		// Every cell is a miss. (5,5) is the densest and was shot most recently of
+		// the stale ones; (0,0) is the least dense and the oldest.
+		for (let row = 0; row < SIZE.rows; row++) {
+			for (let col = 0; col < SIZE.cols; col++) fireAt(board, { row, col }, true, 50);
+		}
+		fireAt(board, { row: 0, col: 0 }, true, 1);
+		fireAt(board, { row: 5, col: 5 }, true, 30);
+
+		const map = densityMap(withFleet(board, 100));
+		const best = map.indexOf(Math.max(...map));
+		expect(best).toBe(0);
+	});
+
+	it('still prefers untried water while any remains', () => {
+		const board = empty();
+		fireAt(board, { row: 5, col: 5 }, true, 0); // old miss, now stale
+		const map = densityMap(withFleet(board, 100));
+		const untried = map[0 * SIZE.cols + 0];
+		expect(untried).toBeGreaterThan(map[5 * SIZE.cols + 5]);
+	});
+});

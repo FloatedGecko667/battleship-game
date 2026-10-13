@@ -19,7 +19,7 @@ export function isDamaged(ship: FleetShip): boolean {
 }
 
 /**
- * Only an unmarked hull can get under way.
+ * Only an unmarked hull with fuel left can get under way.
  *
  * This is what keeps the variant honest. The enemy's marks record what they
  * saw and must never move, so a damaged ship that sailed away would leave its
@@ -28,7 +28,7 @@ export function isDamaged(ship: FleetShip): boolean {
  * Holding damaged ships in place keeps every hit mark true.
  */
 export function canGetUnderWay(ship: FleetShip): boolean {
-	return !isDamaged(ship);
+	return !isDamaged(ship) && ship.fuel > 0;
 }
 
 export function stepFor(ship: Ship, heading: Heading): Coord {
@@ -77,6 +77,7 @@ export function moveShip(
 	const moved = movedShip(ship, heading, board.ships, board.size, rules);
 	if (!moved) return false;
 	ship.bow = moved.bow;
+	ship.fuel--;
 	return true;
 }
 

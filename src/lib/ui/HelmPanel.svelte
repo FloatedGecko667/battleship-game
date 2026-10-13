@@ -31,6 +31,9 @@
 					>
 						<span class="code">{hullCode(ship.class)}</span>
 						<span class="name">{i18n.t.ships[ship.class]}</span>
+						<span class="fuel" aria-label={i18n.t.helm.fuelAria(ship.fuel)}>
+							{i18n.t.helm.fuel(ship.fuel)}
+						</span>
 					</button>
 				</li>
 			{/each}
@@ -85,6 +88,12 @@
 	.code {
 		font-weight: 700;
 		width: 2ch;
+	}
+
+	.fuel {
+		margin-left: auto;
+		color: var(--text-dim);
+		font-size: 0.62rem;
 	}
 
 	.steer {

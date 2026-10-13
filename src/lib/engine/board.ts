@@ -1,6 +1,6 @@
 import type { BoardSize, Coord, FleetShip, Mark, Ship, ShipClass } from './types';
 import { cellsOf } from './geometry';
-import { shipLength } from './fleet';
+import { MOBILE_FUEL, shipLength } from './fleet';
 
 export interface Board {
 	size: BoardSize;
@@ -20,7 +20,11 @@ export function indexToCoord(index: number, size: BoardSize): Coord {
 export function createBoard(size: BoardSize, ships: readonly Ship[]): Board {
 	return {
 		size,
-		ships: ships.map((ship) => ({ ...ship, hits: new Array(shipLength(ship.class)).fill(false) })),
+		ships: ships.map((ship) => ({
+			...ship,
+			hits: new Array(shipLength(ship.class)).fill(false),
+			fuel: MOBILE_FUEL
+		})),
 		marks: new Array(size.rows * size.cols).fill(null)
 	};
 }

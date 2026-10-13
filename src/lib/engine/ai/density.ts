@@ -2,7 +2,7 @@ import type { Coord, Facing } from '../types';
 import { cellsOf } from '../geometry';
 import { shipLength } from '../fleet';
 import type { Rng } from '../rng';
-import { isStaleMiss, remainingClasses, type TargetView } from './view';
+import { isStaleMiss, remainingClasses, STALE_AFTER, type TargetView } from './view';
 
 /** How much more a placement counts for each unresolved hit it explains. */
 const HIT_WEIGHT = 8;
@@ -93,10 +93,28 @@ export function densityMap(view: TargetView): number[] {
 	// it keeps a fraction of its score rather than its full one. Treating it as
 	// wholly unknown made the search cycle over the same few central cells and
 	// never sweep the board.
+	const stale: number[] = [];
+	let freshLeft = false;
 	for (let i = 0; i < map.length; i++) {
 		const mark = view.marks[i];
-		if (!mark || mark.kind === 'scan') continue;
-		map[i] = isStaleMiss(mark, view.turn) ? map[i] * STALE_WEIGHT : 0;
+		if (!mark || mark.kind === 'scan') {
+			if (map[i] > 0) freshLeft = true;
+			continue;
+		}
+		if (!isStaleMiss(mark, view.turn)) {
+			map[i] = 0;
+			continue;
+		}
+		if (map[i] > 0) stale.push(i);
+		map[i] *= STALE_WEIGHT;
+	}
+
+	// With no untried water left, the last ship is under an old miss. Ranking
+	// those by density sends the search round the few densest cells for ever -
+	// each is fresh again the moment it is fired at - so sweep them oldest first
+	// instead. That reaches every cell, which is what lets a game always end.
+	if (!freshLeft) {
+		for (const i of stale) map[i] = view.turn! - view.marks[i]!.turn! - STALE_AFTER;
 	}
 
 	return map;

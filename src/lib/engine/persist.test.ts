@@ -45,6 +45,15 @@ describe('board snapshots', () => {
 		expect(markAt(restored, { row: 0, col: 0 })).toEqual(markAt(board, { row: 0, col: 0 }));
 	});
 
+	it('keeps how much fuel each ship has left', () => {
+		const board = playedBoard();
+		board.ships[0].fuel = 1;
+		board.ships[2].fuel = 0;
+		const restored = restoreBoard(SIZE, JSON.parse(JSON.stringify(boardSnapshot(board))));
+
+		expect(restored.ships.map((ship) => ship.fuel)).toEqual(board.ships.map((ship) => ship.fuel));
+	});
+
 	it('copies rather than aliasing the live board', () => {
 		const board = playedBoard();
 		const snapshot = boardSnapshot(board);

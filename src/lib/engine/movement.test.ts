@@ -3,6 +3,7 @@ import { boardSize } from './edition';
 import { createBoard } from './board';
 import { fireAt } from './resolve';
 import { cellsOf } from './geometry';
+import { MOBILE_FUEL } from './fleet';
 import { canGetUnderWay, moveShip, movedShip, previewMove, shipsUnderWay } from './movement';
 import type { Ship } from './types';
 
@@ -101,5 +102,37 @@ describe('moveShip', () => {
 	it('previews nothing when the ship cannot move', () => {
 		const b = board([{ class: 'DD', bow: { row: 4, col: 0 }, facing: 'W' }]);
 		expect(previewMove(b.ships[0], 'ahead', b.ships, SIZE)).toEqual([]);
+	});
+});
+
+describe('fuel', () => {
+	const sail = (b: ReturnType<typeof board>, heading: 'ahead' | 'astern') =>
+		moveShip(b, b.ships[0], heading);
+
+	it('starts every ship with the same allowance', () => {
+		const b = board([
+			{ class: 'DD', bow: { row: 4, col: 4 }, facing: 'W' },
+			{ class: 'PB', bow: { row: 0, col: 0 }, facing: 'W' }
+		]);
+		expect(b.ships.map((s) => s.fuel)).toEqual([MOBILE_FUEL, MOBILE_FUEL]);
+	});
+
+	it('burns one unit per cell sailed, and nothing on a refused move', () => {
+		const b = board([{ class: 'DD', bow: { row: 4, col: 0 }, facing: 'W' }]);
+		expect(sail(b, 'ahead')).toBe(false); // off the board
+		expect(b.ships[0].fuel).toBe(MOBILE_FUEL);
+
+		expect(sail(b, 'astern')).toBe(true);
+		expect(b.ships[0].fuel).toBe(MOBILE_FUEL - 1);
+	});
+
+	it('holds a ship in place once its fuel is gone', () => {
+		const b = board([{ class: 'DD', bow: { row: 4, col: 4 }, facing: 'W' }]);
+		for (let i = 0; i < MOBILE_FUEL; i++) expect(sail(b, i % 2 ? 'ahead' : 'astern')).toBe(true);
+
+		expect(b.ships[0].fuel).toBe(0);
+		expect(canGetUnderWay(b.ships[0])).toBe(false);
+		expect(sail(b, 'ahead')).toBe(false);
+		expect(shipsUnderWay(b)).toEqual([]);
 	});
 });

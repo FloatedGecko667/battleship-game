@@ -23,6 +23,8 @@ export interface Ship {
 export interface FleetShip extends Ship {
 	/** Parallel to `cellsOf(ship)`: `hits[i]` is true once that cell has been hit. */
 	hits: boolean[];
+	/** Cells this ship may still sail under MOBILE FLEET. */
+	fuel: number;
 }
 
 export type ShotResult = 'hit' | 'miss';

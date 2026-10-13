@@ -96,6 +96,36 @@ describe('difficulty ladder', () => {
 		expect(mean).toBeLessThan(120);
 	});
 
+	it('always ends, even against a defender that runs at every chance', () => {
+		// Before fuel, about 1-2% of games never finished because a ship could
+		// dodge for ever. With a finite allowance the fleet must eventually
+		// hold still, so every game ends - however eagerly the defender sails.
+		const rng = mulberry32(23);
+		const finished: number[] = [];
+		const games = 150;
+
+		for (let seed = 0; seed < games; seed++) {
+			const board = createBoard(CLASSIC, randomFleet(CLASSIC, mulberry32(seed), fleetClasses('CLASSIC')));
+			let shots = 0;
+			let turn = 0;
+
+			while (!board.ships.every((ship) => ship.hits.every(Boolean)) && shots < 2000) {
+				const movers = shipsUnderWay(board);
+				if (movers.length) {
+					moveShip(board, movers[rng.int(movers.length)], rng.next() < 0.5 ? 'ahead' : 'astern');
+				}
+				const shot = chooseShot(board, 3, rng, turn);
+				if (!shot) break;
+				fireAt(board, shot, true, turn);
+				shots++;
+				turn++;
+			}
+			if (board.ships.every((ship) => ship.hits.every(Boolean))) finished.push(shots);
+		}
+
+		expect(finished).toHaveLength(games);
+	});
+
 	it('still clears the wider DELUXE board', () => {
 		const mean = meanShots(3, 40, boardSize('DELUXE'));
 		// 140 cells instead of 100, so more shots are expected - but not a sweep.

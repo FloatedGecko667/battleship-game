@@ -14,8 +14,9 @@ const LEGACY_KEYS = ['salvonet.game'];
 /**
  * Bumped whenever the shape below changes, so stale saves are dropped.
  * 2: CLASSIC sails the 1990 fleet, and log lines are stored as data.
+ * 3: ships carry MOBILE FLEET fuel.
  */
-export const SNAPSHOT_VERSION = 2;
+export const SNAPSHOT_VERSION = 3;
 
 export interface BoardSnapshot {
 	ships: FleetShip[];
