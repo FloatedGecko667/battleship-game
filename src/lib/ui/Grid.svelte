@@ -5,6 +5,7 @@
 	import { PHONETIC, RANKS, phoneticLabel } from '$lib/engine/edition';
 	import type { Coord, FleetShip, ShipClass } from '$lib/engine/types';
 	import { BOW_GLYPH, HULL_GLYPH, codeOverlays } from './shipOverlay';
+	import { i18n } from '$lib/i18n/index.svelte';
 
 	interface Props {
 		board: Board;
@@ -84,7 +85,7 @@
 <div class="wrap" data-tone={tone}>
 	{#if label}
 		<p class="label" class:targeted>
-			{label}{#if targeted}<span class="cue"> ◀ fire here</span>{/if}
+			{label}{#if targeted}<span class="cue"> {i18n.t.boards.fireHere}</span>{/if}
 		</p>
 	{/if}
 

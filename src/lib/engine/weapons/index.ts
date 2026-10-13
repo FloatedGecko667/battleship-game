@@ -16,65 +16,51 @@ export interface WeaponSpec {
 	id: WeaponId;
 	/** The weapon is unusable once this ship goes down. */
 	ship: ShipClass;
-	name: string;
 	/** Uses per game; null means unlimited. */
 	ammo: number | null;
 	/** What the player has to aim. */
 	aim: 'centre' | 'line' | 'edge' | 'sweep';
 	/** Anti-aircraft fire is aimed at your own waters, where enemy planes hover. */
 	ownWaters?: true;
-	blurb: string;
 }
 
 export const WEAPONS: readonly WeaponSpec[] = [
 	{
 		id: 'BB_MISSILE',
 		ship: 'BB',
-		name: 'Missile',
 		ammo: 1,
-		aim: 'centre',
-		blurb: 'Blasts a 3×3 area around the centre you call.'
+		aim: 'centre'
 	},
 	{
 		id: 'DD_MISSILE',
 		ship: 'DD',
-		name: 'Salvo missile',
 		ammo: 2,
-		aim: 'line',
-		blurb: 'Strikes three cells in a row or column.'
+		aim: 'line'
 	},
 	{
 		id: 'DE_HOMING',
 		ship: 'DE',
-		name: 'Homing missile',
 		ammo: 2,
-		aim: 'edge',
-		blurb: 'Runs from the grid edge until it meets a ship.'
+		aim: 'edge'
 	},
 	{
 		id: 'CV_AIRCRAFT',
 		ship: 'CV',
-		name: 'Aircraft',
 		ammo: null,
-		aim: 'sweep',
-		blurb: 'Sends a plane over five cells. Each plane strikes once, then only searches.'
+		aim: 'sweep'
 	},
 	{
 		id: 'ANTI_AIR',
 		ship: 'CV',
-		name: 'Anti-aircraft',
 		ammo: null,
 		aim: 'centre',
-		ownWaters: true,
-		blurb: 'Fires into your own waters at an enemy plane you think is overhead.'
+		ownWaters: true
 	},
 	{
 		id: 'DE_SONAR',
 		ship: 'DE',
-		name: 'Sonar',
 		ammo: null,
-		aim: 'centre',
-		blurb: 'Reports whether a 3×3 area holds anything. No position, no count.'
+		aim: 'centre'
 	}
 ] as const;
 

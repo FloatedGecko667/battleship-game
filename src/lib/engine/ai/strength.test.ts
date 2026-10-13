@@ -4,6 +4,7 @@ import { createBoard } from '../board';
 import { fireAt } from '../resolve';
 import { mulberry32 } from '../rng';
 import { randomFleet } from '../placement';
+import { fleetClasses } from '../fleet';
 import { chooseShot, type Difficulty } from './index';
 import { moveShip, shipsUnderWay } from '../movement';
 import type { BoardSize } from '../types';
@@ -11,7 +12,7 @@ import type { BoardSize } from '../types';
 /** Shots the level needs to clear a whole fleet on its own. */
 function shotsToClear(difficulty: Difficulty, seed: number, size: BoardSize): number {
 	const rng = mulberry32(seed);
-	const board = createBoard(size, randomFleet(size, rng));
+	const board = createBoard(size, randomFleet(size, rng, fleetClasses(size.cols === 10 ? 'CLASSIC' : 'DELUXE')));
 	let shots = 0;
 
 	while (!board.ships.every((ship) => ship.hits.every(Boolean))) {
@@ -68,7 +69,7 @@ describe('difficulty ladder', () => {
 		const finished: number[] = [];
 
 		for (let seed = 0; seed < 60; seed++) {
-			const board = createBoard(CLASSIC, randomFleet(CLASSIC, mulberry32(seed)));
+			const board = createBoard(CLASSIC, randomFleet(CLASSIC, mulberry32(seed), fleetClasses('CLASSIC')));
 			let shots = 0;
 			let turn = 0;
 

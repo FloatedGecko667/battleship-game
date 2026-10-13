@@ -4,7 +4,7 @@ import { boardSize } from '$lib/engine/edition';
 import { cellsOf, coordKey } from '$lib/engine/geometry';
 import { canPlace } from '$lib/engine/placement';
 import { coordLabel } from '$lib/engine/edition';
-import { FLEET_CELLS } from '$lib/engine/fleet';
+import { fleetCells } from '$lib/engine/fleet';
 
 const DELUXE = boardSize('DELUXE');
 const entries = Object.entries(FORMATIONS) as [string, Formation][];
@@ -25,8 +25,8 @@ describe.each(entries)('formation %s', (id, formation) => {
 
 	it('fits the 14-wide board without overlapping', () => {
 		const cells = formation.ships.flatMap(cellsOf);
-		expect(cells).toHaveLength(FLEET_CELLS);
-		expect(new Set(cells.map(coordKey)).size).toBe(FLEET_CELLS);
+		expect(cells).toHaveLength(fleetCells('DELUXE'));
+		expect(new Set(cells.map(coordKey)).size).toBe(fleetCells('DELUXE'));
 
 		for (const ship of formation.ships) {
 			const others = formation.ships.filter((s) => s !== ship);

@@ -1,6 +1,5 @@
 import type { BoardSize, Mark, ShipClass } from '../types';
 import type { Board } from '../board';
-import { FLEET } from '../fleet';
 
 /**
  * What a shooter can legitimately see of the opposing board: the marks it has
@@ -10,6 +9,11 @@ import { FLEET } from '../fleet';
 export interface TargetView {
 	size: BoardSize;
 	marks: readonly (Mark | null)[];
+	/**
+	 * Which classes the opposing fleet is made of. Public knowledge - the
+	 * edition fixes it - and it carries no positions.
+	 */
+	fleet: readonly ShipClass[];
 	/**
 	 * Set under MOBILE FLEET. A miss older than STALE_AFTER turns is no longer
 	 * evidence the cell is empty, because a hull could have sailed into it.
@@ -26,7 +30,12 @@ export function isStaleMiss(mark: Mark, turn: number | undefined): boolean {
 }
 
 export function viewOf(board: Board, turn?: number): TargetView {
-	return { size: board.size, marks: board.marks, ...(turn !== undefined ? { turn } : {}) };
+	return {
+		size: board.size,
+		marks: board.marks,
+		fleet: board.ships.map((ship) => ship.class),
+		...(turn !== undefined ? { turn } : {})
+	};
 }
 
 /**
@@ -43,5 +52,5 @@ export function sunkClasses(view: TargetView): Set<ShipClass> {
 
 export function remainingClasses(view: TargetView): ShipClass[] {
 	const sunk = sunkClasses(view);
-	return FLEET.map((spec) => spec.class).filter((cls) => !sunk.has(cls));
+	return view.fleet.filter((cls) => !sunk.has(cls));
 }

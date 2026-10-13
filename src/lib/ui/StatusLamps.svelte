@@ -1,18 +1,20 @@
 <script lang="ts">
+	import { i18n } from '$lib/i18n/index.svelte';
 	/** Stands in for the unit's hit/miss lamps. Red for a hit, amber for a miss. */
 	interface Props {
 		lamp: 'none' | 'hit' | 'miss';
 	}
 
 	let { lamp }: Props = $props();
+	const t = $derived(i18n.t.lamps);
 </script>
 
 <div class="lamps" role="status" aria-live="polite">
 	<span class="lamp hit" class:on={lamp === 'hit'} aria-hidden="true"></span>
-	<span class="label">HIT</span>
+	<span class="label">{t.hit}</span>
 	<span class="lamp miss" class:on={lamp === 'miss'} aria-hidden="true"></span>
-	<span class="label">MISS</span>
-	<span class="sr">{lamp === 'none' ? 'awaiting fire' : lamp}</span>
+	<span class="label">{t.miss}</span>
+	<span class="sr">{lamp === 'none' ? t.idle : lamp === 'hit' ? t.hitSr : t.missSr}</span>
 </div>
 
 <style>

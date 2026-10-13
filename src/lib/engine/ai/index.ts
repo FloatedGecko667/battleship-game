@@ -8,12 +8,6 @@ import { densestShot, topDensity } from './density';
 /** Matches the unit's Level 1 / 2 / 3 difficulty switch. */
 export type Difficulty = 1 | 2 | 3;
 
-export const DIFFICULTY_NAME: Record<Difficulty, string> = {
-	1: 'ENSIGN',
-	2: 'CAPTAIN',
-	3: 'ADMIRAL'
-};
-
 /** A cell is worth firing at unless a shot has already resolved there. */
 /** Never fired at. A stale miss has been fired at, however old it is. */
 export function isUntried(view: TargetView, coord: Coord): boolean {
@@ -90,7 +84,7 @@ export function chooseSalvo(
 	const shots: Coord[] = [];
 
 	for (let i = 0; i < count; i++) {
-		const shadow: TargetView = { size: view.size, marks };
+		const shadow: TargetView = { ...view, marks };
 		const shot = difficulty === 1 ? pickRandom(shadow, rng) : huntTarget(shadow, rng);
 		if (!shot) break;
 		shots.push(shot);

@@ -3,6 +3,7 @@
 	import type { Orientation } from '$lib/engine/weapons/patterns';
 	import type { Aircraft } from '$lib/engine/weapons/aircraft';
 	import Panel from './Panel.svelte';
+	import { i18n } from '$lib/i18n/index.svelte';
 
 	interface Props {
 		weapons: WeaponSpec[];
@@ -34,29 +35,21 @@
 		inBattle
 	}: Props = $props();
 
+	const t = $derived(i18n.t.weapons);
 	const armedSpec = $derived(weapons.find((w) => w.id === armed) ?? null);
 	const needsAxis = $derived(armedSpec?.aim === 'line' || armedSpec?.aim === 'edge');
 	const needsPattern = $derived(armedSpec?.aim === 'sweep');
 </script>
 
-<Panel title="Weapons">
+<Panel title={t.title}>
 	{#if weapons.length === 0}
 		<!-- Say where to go, not just that there is nothing here. -->
 		{#if reason === 'edition'}
-			<p class="none">
-				Special weapons belong to the Deluxe game.
-				<strong>Set Edition to DELUXE</strong> at the top of the page.
-			</p>
+			<p class="none">{t.noneEdition.pre}<strong>{t.noneEdition.em}</strong>{t.noneEdition.post}</p>
 		{:else if reason === 'basic'}
-			<p class="none">
-				This mission is running Basic weapons.
-				<strong>Choose Advanced</strong> under Weapons in the Mission panel, before the
-				battle starts.
-			</p>
+			<p class="none">{t.noneBasic.pre}<strong>{t.noneBasic.em}</strong>{t.noneBasic.post}</p>
 		{:else}
-			<p class="none">
-				Every ship that carried a special weapon has been sunk. Nothing left to fire.
-			</p>
+			<p class="none">{t.noneShips}</p>
 		{/if}
 	{:else}
 		<ul>
@@ -71,17 +64,17 @@
 						<!-- The number key that arms it, so the binding is visible. -->
 						<span class="key">{index + 1}</span>
 						<span class="ship">{weapon.ship}</span>
-						<span class="name">{weapon.name}</span>
+						<span class="name">{t.names[weapon.id]}</span>
 						<span class="rounds">{rounds(weapon.id) === Infinity ? '∞' : rounds(weapon.id)}</span>
 					</button>
-					<span class="blurb">{weapon.blurb}</span>
+					<span class="blurb">{t.blurbs[weapon.id]}</span>
 				</li>
 			{/each}
 		</ul>
 
 		{#if needsAxis}
 			<button type="button" class="axis" onclick={onOrientation}>
-				Axis: {orientation === 'H' ? 'Horizontal' : 'Vertical'} — press P to switch
+				{t.axis(orientation === 'H')}
 			</button>
 		{/if}
 
@@ -95,33 +88,34 @@
 							onclick={() => onSelectPlane(index)}
 						>
 							<span class="ship">◆{plane.id + 1}</span>
-							<span class="name">{plane.at ? 'aloft' : 'on deck'}</span>
-							<span class="rounds">{plane.armed ? 'strike' : 'search'}</span>
+							<span class="name">{plane.at ? t.aloft : t.onDeck}</span>
+							<span class="rounds">{plane.armed ? t.strike : t.search}</span>
 						</button>
 					</li>
 				{/each}
 			</ul>
 			<button type="button" class="axis" onclick={onOrientation}>
-				Pattern: {orientation === 'H' ? '+' : '✕'} — press P to switch
+				{t.pattern(orientation === 'H')}
 			</button>
 		{/if}
 		{#if !inBattle}
-			<p class="guidance">Ready to arm once the battle starts.</p>
+			<p class="guidance">{t.notYet}</p>
 		{:else if armedSpec}
+			{@const aim = armedSpec.ownWaters
+				? t.aimOwn
+				: armedSpec.aim === 'edge'
+					? t.aimEdge
+					: armedSpec.aim === 'sweep'
+						? t.aimSweep
+						: t.aimCentre}
 			<p class="guidance armed-hint">
-				{#if armedSpec.ownWaters}
-					Click <strong>your own board</strong> where you think an enemy plane is overhead.
-				{:else if armedSpec.aim === 'edge'}
-					Click a cell on the <strong>edge</strong> of the enemy board to launch from.
-				{:else if armedSpec.aim === 'sweep'}
-					Click the <strong>enemy board</strong> where the plane should search.
-				{:else}
-					Click the <strong>enemy board</strong> at the centre of the strike.
-				{/if}
-				<span class="dim">Esc stands down.</span>
+				{aim.pre}<strong>{aim.em}</strong>{aim.post}
+				<span class="dim">{t.escStandsDown}</span>
 			</p>
 		{:else}
-			<p class="guidance">Press <kbd>1</kbd>–<kbd>{weapons.length}</kbd>, or pick one above.</p>
+			<p class="guidance">
+				{t.pickPre} <kbd>1</kbd>–<kbd>{weapons.length}</kbd>{t.pickPost}
+			</p>
 		{/if}
 	{/if}
 </Panel>

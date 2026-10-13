@@ -4,14 +4,18 @@ import type { Edition } from './edition';
 import type { RuleSet } from './ruleset';
 import type { Arsenal } from './weapons/index';
 import type { Aircraft } from './weapons/aircraft';
+import type { LogMsg } from '$lib/i18n/index.svelte';
 
 const KEY = 'firingsolution.game';
 
 /** Read as a fallback so a game saved under the old name is not orphaned. */
 const LEGACY_KEYS = ['salvonet.game'];
 
-/** Bumped whenever the shape below changes, so stale saves are dropped. */
-export const SNAPSHOT_VERSION = 1;
+/**
+ * Bumped whenever the shape below changes, so stale saves are dropped.
+ * 2: CLASSIC sails the 1990 fleet, and log lines are stored as data.
+ */
+export const SNAPSHOT_VERSION = 2;
 
 export interface BoardSnapshot {
 	ships: FleetShip[];
@@ -34,7 +38,7 @@ export interface Snapshot {
 	cpuFlight: Aircraft[];
 	playerArsenal: Arsenal;
 	cpuArsenal: Arsenal;
-	log: { id: number; side: 'player' | 'cpu' | 'system'; text: string }[];
+	log: { id: number; side: 'player' | 'cpu' | 'system'; msg: LogMsg }[];
 }
 
 export function boardSnapshot(board: Board): BoardSnapshot {

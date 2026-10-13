@@ -1,15 +1,12 @@
 <script lang="ts">
 	import {
-		GAME_TYPE_NAME,
-		HOUSE_RULE_BLURB,
-		HOUSE_RULE_NAME,
-		WEAPONS_NAME,
 		type GameType,
 		type HouseRules,
 		type Weapons
 	} from '$lib/engine/ruleset';
 	import type { Edition } from '$lib/engine/edition';
 	import Panel from './Panel.svelte';
+	import { i18n } from '$lib/i18n/index.svelte';
 
 	interface Props {
 		edition: Edition;
@@ -26,9 +23,10 @@
 	let { edition, gameType, house, locked, onToggle, onGameType, weapons, onWeapons }: Props =
 		$props();
 
-	const keys = Object.keys(HOUSE_RULE_NAME) as (keyof HouseRules)[];
-	const types = Object.keys(GAME_TYPE_NAME) as GameType[];
-	const weaponModes = Object.keys(WEAPONS_NAME) as Weapons[];
+	const t = $derived(i18n.t.rules);
+	const keys: (keyof HouseRules)[] = ['bonusTurn', 'noAdjacency', 'salvo', 'sunkSilence', 'mobileFleet'];
+	const types: GameType[] = ['CLASSIC', 'MULTI_ATTACK', 'SALVO'];
+	const weaponModes: Weapons[] = ['BASIC', 'ADVANCED'];
 
 	/**
 	 * On DELUXE the official game type drives salvo and the extra turn, and the
@@ -41,10 +39,10 @@
 	);
 </script>
 
-<Panel title={edition === 'DELUXE' ? 'Mission' : 'House Rules'}>
+<Panel title={edition === 'DELUXE' ? t.missionTitle : t.houseTitle}>
 	{#if edition === 'DELUXE'}
 		<fieldset disabled={locked}>
-			<legend>Game type</legend>
+			<legend>{t.gameType}</legend>
 			{#each types as type (type)}
 				<label class="radio">
 					<input
@@ -54,13 +52,13 @@
 						checked={gameType === type}
 						onchange={() => onGameType(type)}
 					/>
-					<span class="name">{GAME_TYPE_NAME[type]}</span>
+					<span class="name">{t.gameTypes[type]}</span>
 				</label>
 			{/each}
 		</fieldset>
 
 		<fieldset disabled={locked}>
-			<legend>Weapons</legend>
+			<legend>{t.weapons}</legend>
 			{#each weaponModes as mode (mode)}
 				<label class="radio">
 					<input
@@ -70,7 +68,7 @@
 						checked={weapons === mode}
 						onchange={() => onWeapons(mode)}
 					/>
-					<span class="name">{WEAPONS_NAME[mode]}</span>
+					<span class="name">{t.weaponModes[mode]}</span>
 				</label>
 			{/each}
 		</fieldset>
@@ -87,15 +85,15 @@
 							disabled={locked}
 							onchange={(e) => onToggle(key, e.currentTarget.checked)}
 						/>
-						<span class="name">{HOUSE_RULE_NAME[key]}</span>
+						<span class="name">{t.houseNames[key]}</span>
 					</label>
-					<span class="blurb">{HOUSE_RULE_BLURB[key]}</span>
+					<span class="blurb">{t.houseBlurbs[key]}</span>
 				</li>
 			{/if}
 		{/each}
 	</ul>
 	{#if locked}
-		<p class="locked">Locked once the battle starts.</p>
+		<p class="locked">{t.locked}</p>
 	{/if}
 </Panel>
 

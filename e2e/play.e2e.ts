@@ -203,3 +203,33 @@ test('an armed weapon points at the board it wants', async ({ page }) => {
 	await page.locator('body').press('Escape');
 	await expect(ownLabel).not.toContainText('fire here');
 });
+
+test('CLASSIC sails the submarine fleet and DELUXE does not', async ({ page }) => {
+	await fresh(page);
+	const hull = page.locator('.panel').filter({ has: page.locator('.title', { hasText: /^Hull Codes$/ }) });
+	for (const code of ['CV', 'BB', 'CA', 'SS', 'DD']) {
+		await expect(hull.locator('td.code', { hasText: new RegExp(`^${code}$`) })).toBeVisible();
+	}
+	await expect(hull.locator('td.code', { hasText: /^(DE|PB)$/ })).toHaveCount(0);
+
+	await page.getByLabel('Edition').selectOption('DELUXE');
+	await expect(hull.locator('td.code', { hasText: /^SS$/ })).toHaveCount(0);
+	await expect(hull.locator('td.code', { hasText: /^PB$/ })).toBeVisible();
+});
+
+test('speaks Japanese when asked, and remembers the choice', async ({ page }) => {
+	await fresh(page);
+	await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+
+	await page.getByLabel('Language').selectOption('ja');
+	await expect(page.locator('html')).toHaveAttribute('lang', 'ja');
+	await expect(page.getByRole('button', { name: '新規' })).toBeVisible();
+	await expect(page.locator('.panel .title', { hasText: '艦種コード' })).toBeVisible();
+
+	await page.locator('body').press('Enter');
+	await expect(page.locator('.hint')).toContainText('命令待機中');
+
+	await page.reload();
+	await expect(page.locator('html')).toHaveAttribute('lang', 'ja');
+	await expect(page.getByRole('button', { name: '新規' })).toBeVisible();
+});

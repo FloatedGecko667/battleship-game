@@ -3,6 +3,7 @@
 	import { boardSize } from '$lib/engine/edition';
 	import { cellsOf, coordKey } from '$lib/engine/geometry';
 	import Panel from './Panel.svelte';
+	import { i18n } from '$lib/i18n/index.svelte';
 
 	interface Props {
 		selected: FormationId | null;
@@ -26,16 +27,16 @@
 	}
 </script>
 
-<Panel title="Formations">
+<Panel title={i18n.t.formations.title}>
 	<form onsubmit={submit}>
 		<label>
-			Code
+			{i18n.t.formations.code}
 			<input bind:value={typed} placeholder="A1" maxlength="3" size="4" />
 		</label>
-		<button type="submit">Deploy</button>
+		<button type="submit">{i18n.t.formations.deploy}</button>
 	</form>
 
-	<div class="grid" role="listbox" aria-label="Rulebook formations">
+	<div class="grid" role="listbox" aria-label={i18n.t.formations.listAria}>
 		{#each FORMATION_IDS as id (id)}
 			{@const cells = occupied(id)}
 			<button

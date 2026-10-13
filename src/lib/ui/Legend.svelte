@@ -1,17 +1,20 @@
 <script lang="ts">
 	import Panel from './Panel.svelte';
+	import { i18n } from '$lib/i18n/index.svelte';
+
+	const t = $derived(i18n.t.legend);
 </script>
 
-<Panel title="Legend">
+<Panel title={t.title}>
 	<ul>
-		<li><span class="pin miss">●</span> Miss</li>
+		<li><span class="pin miss">●</span> {t.miss}</li>
 		<li>
-			<span class="stack"><span class="pin hit">●</span><span class="cross">╳</span></span> Hit
+			<span class="stack"><span class="pin hit">●</span><span class="cross">╳</span></span> {t.hit}
 		</li>
-		<li><span class="pin scan">●</span> Sonar sweep centre</li>
-		<li><span class="hull ally">▓</span> Your hull</li>
-		<li><span class="hull enemy">▓</span> Enemy hull (revealed on sinking)</li>
-		<li><span class="plane">◆</span> Aircraft — on deck, or hovering once launched</li>
+		<li><span class="pin scan">●</span> {t.scan}</li>
+		<li><span class="hull ally">▓</span> {t.ownHull}</li>
+		<li><span class="hull enemy">▓</span> {t.enemyHull}</li>
+		<li><span class="plane">◆</span> {t.aircraft}</li>
 	</ul>
 </Panel>
 

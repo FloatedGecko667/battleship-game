@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { boardSize } from '../edition';
-import { createBoard, markAt } from '../board';
+import { createBoard, markAt, type Board } from '../board';
+import { fleetClasses } from '../fleet';
 import { fireAt } from '../resolve';
 import { isUntried, viewOf } from './index';
 import { isStaleMiss, STALE_AFTER } from './view';
@@ -9,6 +10,11 @@ import type { Ship } from '../types';
 
 const SIZE = boardSize('CLASSIC');
 const at = (map: number[], row: number, col: number) => map[row * SIZE.cols + col];
+/** Hand-built boards hold no ships, but the shooter still faces a whole fleet. */
+const withFleet = (board: Board, turn?: number) => ({
+	...viewOf(board, turn),
+	fleet: fleetClasses('CLASSIC')
+});
 const empty = () => createBoard(SIZE, [] as Ship[]);
 
 describe('marks without MOBILE FLEET', () => {
@@ -72,20 +78,20 @@ describe('the density map with stale misses', () => {
 		const board = empty();
 		fireAt(board, { row: 5, col: 5 }, true, 0);
 
-		expect(at(densityMap(viewOf(board, 1)), 5, 5)).toBe(0);
-		expect(at(densityMap(viewOf(board, STALE_AFTER + 1)), 5, 5)).toBeGreaterThan(0);
+		expect(at(densityMap(withFleet(board, 1)), 5, 5)).toBe(0);
+		expect(at(densityMap(withFleet(board, STALE_AFTER + 1)), 5, 5)).toBeGreaterThan(0);
 	});
 
 	it('keeps trusting a fresh miss', () => {
 		const board = empty();
 		fireAt(board, { row: 5, col: 5 }, true, 4);
-		expect(at(densityMap(viewOf(board, 5)), 5, 5)).toBe(0);
+		expect(at(densityMap(withFleet(board, 5)), 5, 5)).toBe(0);
 	});
 
 	it('goes on trusting every miss when the rule is off', () => {
 		const board = empty();
 		fireAt(board, { row: 5, col: 5 });
-		expect(at(densityMap(viewOf(board)), 5, 5)).toBe(0);
-		expect(at(densityMap(viewOf(board, 999)), 5, 5)).toBe(0);
+		expect(at(densityMap(withFleet(board)), 5, 5)).toBe(0);
+		expect(at(densityMap(withFleet(board, 999)), 5, 5)).toBe(0);
 	});
 });

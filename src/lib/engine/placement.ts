@@ -1,5 +1,5 @@
 import type { BoardSize, Coord, Facing, Ship, ShipClass } from './types';
-import { FLEET, shipLength } from './fleet';
+import { shipLength } from './fleet';
 import { cellsOf, coordKey, inBounds, kickOffsets, rotateCW } from './geometry';
 import type { Rng } from './rng';
 
@@ -102,8 +102,8 @@ export function nudge(
 export function randomFleet(
 	size: BoardSize,
 	rng: Rng,
-	rules: PlacementRules = DEFAULT_PLACEMENT_RULES,
-	classes: readonly ShipClass[] = FLEET.map((spec) => spec.class)
+	classes: readonly ShipClass[],
+	rules: PlacementRules = DEFAULT_PLACEMENT_RULES
 ): Ship[] {
 	for (let attempt = 0; attempt < 200; attempt++) {
 		const fleet: Ship[] = [];

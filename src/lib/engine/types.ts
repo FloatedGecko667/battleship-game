@@ -8,7 +8,7 @@ export interface Coord {
 export type Facing = 'N' | 'E' | 'S' | 'W';
 
 /** Hull classification codes. See PLAN.md §2.2 for the mapping to the official ships. */
-export type ShipClass = 'CV' | 'BB' | 'DD' | 'DE' | 'PB';
+export type ShipClass = 'CV' | 'BB' | 'CA' | 'SS' | 'DD2' | 'DD' | 'DE' | 'PB';
 
 export type Side = 'player' | 'cpu';
 

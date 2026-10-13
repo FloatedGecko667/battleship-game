@@ -9,6 +9,7 @@ import {
 	type Snapshot
 } from './persist';
 import { boardSize } from './edition';
+import { fleetClasses } from './fleet';
 import { createBoard, markAt } from './board';
 import { fireAt } from './resolve';
 import { randomFleet } from './placement';
@@ -28,7 +29,7 @@ function fakeStore(initial: Record<string, string> = {}) {
 const SIZE = boardSize('DELUXE');
 
 function playedBoard() {
-	const board = createBoard(SIZE, randomFleet(SIZE, mulberry32(3)));
+	const board = createBoard(SIZE, randomFleet(SIZE, mulberry32(3), fleetClasses('DELUXE')));
 	fireAt(board, { row: 0, col: 0 });
 	fireAt(board, { row: 5, col: 5 });
 	return board;

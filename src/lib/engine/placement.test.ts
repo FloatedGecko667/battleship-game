@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { canPlace, randomFleet, rotateWithKick } from './placement';
 import { cellsOf, coordKey } from './geometry';
 import { boardSize } from './edition';
-import { FLEET, FLEET_CELLS } from './fleet';
+import { fleetCells, fleetClasses, fleetFor } from './fleet';
 import { mulberry32 } from './rng';
 import type { Ship } from './types';
 
@@ -67,14 +67,15 @@ describe('rotateWithKick', () => {
 
 describe('randomFleet', () => {
 	it('places all five ships without overlap on both editions', () => {
-		for (const size of [CLASSIC, DELUXE]) {
+		for (const edition of ['CLASSIC', 'DELUXE'] as const) {
+			const size = boardSize(edition);
 			for (let seed = 0; seed < 50; seed++) {
-				const fleet = randomFleet(size, mulberry32(seed));
-				expect(fleet).toHaveLength(FLEET.length);
+				const fleet = randomFleet(size, mulberry32(seed), fleetClasses(edition));
+				expect(fleet.map((s) => s.class)).toEqual(fleetFor(edition).map((s) => s.class));
 
 				const cells = fleet.flatMap(cellsOf);
-				expect(cells).toHaveLength(FLEET_CELLS);
-				expect(new Set(cells.map(coordKey)).size).toBe(FLEET_CELLS);
+				expect(cells).toHaveLength(fleetCells(edition));
+				expect(new Set(cells.map(coordKey)).size).toBe(fleetCells(edition));
 				expect(
 					cells.every((c) => c.row >= 0 && c.row < size.rows && c.col >= 0 && c.col < size.cols)
 				).toBe(true);
@@ -83,7 +84,7 @@ describe('randomFleet', () => {
 	});
 
 	it('honours NO ADJACENCY', () => {
-		const fleet = randomFleet(CLASSIC, mulberry32(7), { noAdjacency: true });
+		const fleet = randomFleet(CLASSIC, mulberry32(7), fleetClasses('CLASSIC'), { noAdjacency: true });
 		for (const ship of fleet) {
 			const others = fleet.filter((s) => s !== ship);
 			expect(canPlace(ship, others, CLASSIC, { noAdjacency: true })).toBe(true);
@@ -91,6 +92,9 @@ describe('randomFleet', () => {
 	});
 
 	it('is reproducible for a given seed', () => {
-		expect(randomFleet(DELUXE, mulberry32(42))).toEqual(randomFleet(DELUXE, mulberry32(42)));
+		const classes = fleetClasses('DELUXE');
+		expect(randomFleet(DELUXE, mulberry32(42), classes)).toEqual(
+			randomFleet(DELUXE, mulberry32(42), classes)
+		);
 	});
 });

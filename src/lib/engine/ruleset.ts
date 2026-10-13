@@ -92,30 +92,3 @@ export function effectiveRules(rules: RuleSet): EffectiveRules {
 		mobileFleet: rules.house.mobileFleet
 	};
 }
-
-export const GAME_TYPE_NAME: Record<GameType, string> = {
-	CLASSIC: 'Classic',
-	MULTI_ATTACK: 'Multi-Attack',
-	SALVO: 'Salvo'
-};
-
-export const WEAPONS_NAME: Record<Weapons, string> = {
-	BASIC: 'Basic',
-	ADVANCED: 'Advanced'
-};
-
-export const HOUSE_RULE_NAME: Record<keyof HouseRules, string> = {
-	bonusTurn: 'Bonus turn',
-	noAdjacency: 'No adjacency',
-	salvo: 'Salvo',
-	sunkSilence: 'Sunk silence',
-	mobileFleet: 'Mobile fleet'
-};
-
-export const HOUSE_RULE_BLURB: Record<keyof HouseRules, string> = {
-	bonusTurn: 'A hit earns another shot.',
-	noAdjacency: 'Ships may not touch, not even diagonally.',
-	salvo: 'Fire once per surviving ship.',
-	sunkSilence: 'Sinkings are never announced.',
-	mobileFleet: 'Once a turn, move one undamaged ship a cell along its axis. A miss goes stale.'
-};

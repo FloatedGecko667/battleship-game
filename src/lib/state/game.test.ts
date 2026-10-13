@@ -186,7 +186,7 @@ describe('house rules', () => {
 
 		expect(game.cpuBoard.ships[0].hits.every(Boolean)).toBe(true);
 		expect(sunkClasses(viewOf(game.cpuBoard)).size).toBe(0);
-		expect(game.log.some((line) => line.text.includes('is down'))).toBe(false);
+		expect(game.log.some((line) => line.msg.k === 'sunk')).toBe(false);
 	});
 
 	it('keeps ships apart under NO ADJACENCY', () => {
@@ -399,7 +399,7 @@ describe('advanced weapons', () => {
 		game.playerFire({ row: 5, col: 5 });
 		expect(game.roundsFor('DE_HOMING')).toBe(2);
 		expect(game.turn).toBe('player');
-		expect(game.log.at(-1)?.text).toContain('grid edge');
+		expect(game.log.at(-1)?.msg.k).toBe('notEdge');
 	});
 
 	it('flips the firing axis for the aim preview', () => {
@@ -486,7 +486,7 @@ describe('carrier aircraft', () => {
 		game.playerFire(cellsOf(carrier)[2]);
 
 		expect(carrier.hits.filter(Boolean).length).toBe(before);
-		expect(game.log.at(-1)?.text).toContain('contact');
+		expect(game.log.at(-1)?.msg).toMatchObject({ k: 'scan', detected: true });
 	});
 
 	it('loses a plane still on deck when that cell is hit', () => {
@@ -498,7 +498,7 @@ describe('carrier aircraft', () => {
 		game.playerFire(doomed.home);
 
 		expect(game.cpuFlight[0].alive).toBe(false);
-		expect(game.log.some((l) => l.text.includes('aircraft destroyed on deck'))).toBe(true);
+		expect(game.log.some((l) => l.msg.k === 'deckLoss')).toBe(true);
 	});
 
 	it('spares a plane that has already launched', () => {
@@ -522,7 +522,7 @@ describe('carrier aircraft', () => {
 		game.fireOwnWaters(spot);
 
 		expect(game.cpuFlight[0].alive).toBe(false);
-		expect(game.log.some((l) => l.text.includes('enemy aircraft down'))).toBe(true);
+		expect(game.log.some((l) => l.msg.k === 'antiAir' && l.msg.downed)).toBe(true);
 	});
 
 	it('reports empty sky rather than pretending', () => {
@@ -534,7 +534,7 @@ describe('carrier aircraft', () => {
 		game.fireOwnWaters({ row: 1, col: 1 });
 
 		expect(game.cpuFlight.every((p) => p.alive)).toBe(true);
-		expect(game.log.at(-1)?.text).toContain('nothing there');
+		expect(game.log.at(-1)?.msg).toMatchObject({ k: 'antiAir', downed: false });
 	});
 
 	it('withdraws both carrier weapons when the carrier sinks', () => {
@@ -627,7 +627,7 @@ describe('resuming an interrupted game', () => {
 		expect(fresh.phase).toBe('battle');
 		expect(fresh.cpuBoard.marks).toEqual(game.cpuBoard.marks);
 		expect(fresh.playerBoard.ships).toEqual(game.playerBoard.ships);
-		expect(fresh.log.map((l) => l.text)).toEqual(game.log.map((l) => l.text));
+		expect(fresh.log.map((l) => l.msg)).toEqual(game.log.map((l) => l.msg));
 		expect(fresh.resumed).toBe(true);
 	});
 
@@ -850,7 +850,7 @@ describe('MOBILE FLEET', () => {
 			const cell = untriedCells(viewOf(game.cpuBoard))[0];
 			game.playerFire(cell);
 			vi.runAllTimers();
-			moved = game.log.some((l) => l.text.includes('under way'));
+			moved = game.log.some((l) => l.msg.k === 'cpuUnderWay');
 		}
 		expect(moved).toBe(true);
 	});

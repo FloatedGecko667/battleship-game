@@ -4,6 +4,7 @@ import { createBoard } from '../board';
 import { fireAt } from '../resolve';
 import { mulberry32 } from '../rng';
 import { randomFleet } from '../placement';
+import { fleetClasses } from '../fleet';
 import { isUntried, liveHits, pickRandom, untriedCells, viewOf } from './index';
 import { huntTarget } from './hunt';
 import type { Ship } from '../types';
@@ -67,7 +68,7 @@ describe('huntTarget', () => {
 	});
 
 	it('never repeats a cell and always finishes the fleet', () => {
-		const fleet = randomFleet(SIZE, mulberry32(9));
+		const fleet = randomFleet(SIZE, mulberry32(9), fleetClasses('CLASSIC'));
 		const board = createBoard(SIZE, fleet);
 		const seen = new Set<string>();
 		const rngInstance = mulberry32(3);

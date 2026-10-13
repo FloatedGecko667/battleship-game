@@ -32,4 +32,17 @@ describe('BOW_GLYPH', () => {
 	it('points the way the ship faces', () => {
 		expect(BOW_GLYPH).toEqual({ N: '▲', E: '▶', S: '▼', W: '◀' });
 	});
+
+	it('treats the two-cell CLASSIC destroyer the same way, and labels it DD', () => {
+		const overlays = codeOverlays({ class: 'DD2', bow: { row: 2, col: 4 }, facing: 'W' });
+		expect(overlays).toEqual([{ row: 2, col: 4, rowSpan: 1, colSpan: 2, text: 'DD' }]);
+	});
+
+	it('labels the three-cell CLASSIC hulls behind the bow', () => {
+		for (const [cls, code] of [['CA', 'CA'], ['SS', 'SS']] as const) {
+			const overlays = codeOverlays({ class: cls, bow: { row: 0, col: 0 }, facing: 'W' });
+			expect(overlays).toHaveLength(2);
+			expect(overlays.every((o) => o.text === code)).toBe(true);
+		}
+	});
 });

@@ -1,36 +1,40 @@
 <script lang="ts">
-	import { FLEET } from '$lib/engine/fleet';
+	import { fleetFor } from '$lib/engine/fleet';
+	import type { Edition } from '$lib/engine/edition';
 	import { isSunk, type Board } from '$lib/engine/board';
+	import { i18n } from '$lib/i18n/index.svelte';
 	import Panel from './Panel.svelte';
 
 	interface Props {
 		/** Own board, so damage counts can be shown. */
 		board: Board;
+		edition: Edition;
 	}
 
-	let { board }: Props = $props();
+	let { board, edition }: Props = $props();
 
 	const rows = $derived(
-		FLEET.map((spec) => {
+		fleetFor(edition).map((spec) => {
 			const ship = board.ships.find((s) => s.class === spec.class);
 			const hits = ship ? ship.hits.filter(Boolean).length : 0;
 			return { spec, hits, down: ship ? isSunk(ship) : false };
 		})
 	);
+	const t = $derived(i18n.t.hullCodes);
 </script>
 
-<Panel title="Hull Codes">
+<Panel title={t.title}>
 	<table>
 		<thead>
-			<tr><th>Code</th><th>Ship</th><th>Len</th><th>Status</th></tr>
+			<tr><th>{t.code}</th><th>{t.ship}</th><th>{t.length}</th><th>{t.status}</th></tr>
 		</thead>
 		<tbody>
 			{#each rows as row (row.spec.class)}
 				<tr class:down={row.down}>
-					<td class="code">{row.spec.class}</td>
-					<td>{row.spec.name}</td>
+					<td class="code">{row.spec.code}</td>
+					<td>{i18n.t.ships[row.spec.class]}</td>
 					<td class="num">{row.spec.length}</td>
-					<td class="num">{row.down ? 'SUNK' : `${row.hits}/${row.spec.length}`}</td>
+					<td class="num">{row.down ? t.sunk : `${row.hits}/${row.spec.length}`}</td>
 				</tr>
 			{/each}
 		</tbody>

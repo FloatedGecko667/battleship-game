@@ -1,11 +1,17 @@
-<script lang="ts">
-	import Panel from './Panel.svelte';
+<script lang="ts" module>
+	import type { LogMsg } from '$lib/i18n/index.svelte';
 
 	export interface LogLine {
 		id: number;
 		side: 'player' | 'cpu' | 'system';
-		text: string;
+		/** Stored as data so the whole log re-reads in the current language. */
+		msg: LogMsg;
 	}
+</script>
+
+<script lang="ts">
+	import Panel from './Panel.svelte';
+	import { i18n, logText } from '$lib/i18n/index.svelte';
 
 	interface Props {
 		lines: LogLine[];
@@ -21,12 +27,12 @@
 	});
 </script>
 
-<Panel title="Log">
+<Panel title={i18n.t.log.title}>
 	<div class="scroll" bind:this={scroller} role="log" aria-live="polite" aria-relevant="additions">
 		{#each lines as line (line.id)}
 			<p class="line" data-side={line.side}>
 				<span class="marker">{line.side === 'player' ? '>' : line.side === 'cpu' ? '<' : '#'}</span>
-				{line.text}
+				{logText(i18n.t, line.msg)}
 			</p>
 		{/each}
 	</div>

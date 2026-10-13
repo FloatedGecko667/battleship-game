@@ -1,5 +1,6 @@
 import type { Facing, FleetShip, Ship } from '$lib/engine/types';
 import { cellsOf } from '$lib/engine/geometry';
+import { hullCode, shipLength } from '$lib/engine/fleet';
 
 /** Glyph for the bow cell, pointing the way the ship faces. */
 export const BOW_GLYPH: Record<Facing, string> = {
@@ -24,14 +25,16 @@ export interface CodeOverlay {
 /**
  * White hull-code labels drawn on top of the fill.
  *
- * Every class puts its code on each cell behind the bow - except PB, which is
- * only two cells long and so would have just one label cell. That one gets a
- * single label spanning the whole hull, bow glyph included.
+ * Every class puts its code on each cell behind the bow - except two-cell
+ * hulls (PB on DELUXE, DD on CLASSIC), which would have just one label cell.
+ * Those get a single label spanning the whole hull, bow glyph included.
  */
 export function codeOverlays(ship: Ship | FleetShip): CodeOverlay[] {
 	const cells = cellsOf(ship);
 
-	if (ship.class === 'PB') {
+	const text = hullCode(ship.class);
+
+	if (shipLength(ship.class) === 2) {
 		const rows = cells.map((c) => c.row);
 		const cols = cells.map((c) => c.col);
 		return [
@@ -40,7 +43,7 @@ export function codeOverlays(ship: Ship | FleetShip): CodeOverlay[] {
 				col: Math.min(...cols),
 				rowSpan: Math.max(...rows) - Math.min(...rows) + 1,
 				colSpan: Math.max(...cols) - Math.min(...cols) + 1,
-				text: ship.class
+				text
 			}
 		];
 	}
@@ -50,6 +53,6 @@ export function codeOverlays(ship: Ship | FleetShip): CodeOverlay[] {
 		col: cell.col,
 		rowSpan: 1,
 		colSpan: 1,
-		text: ship.class
+		text
 	}));
 }

@@ -2,7 +2,7 @@
  * Optional read-out of the battle log. Off by default: an offline device may
  * have no voices installed, and the log always carries the same information.
  */
-export function speak(text: string, enabled: boolean): boolean {
+export function speak(text: string, enabled: boolean, lang = 'en-US'): boolean {
 	if (!enabled) return false;
 	try {
 		const synth = (globalThis as { speechSynthesis?: SpeechSynthesis }).speechSynthesis;
@@ -12,6 +12,7 @@ export function speak(text: string, enabled: boolean): boolean {
 		if (!synth || !Utterance) return false;
 
 		const utterance = new Utterance(text);
+		utterance.lang = lang;
 		utterance.rate = 1.1;
 		synth.speak(utterance);
 		return true;

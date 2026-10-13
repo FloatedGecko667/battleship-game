@@ -1,4 +1,5 @@
-import { boardSize, coordLabel, type Edition } from '$lib/engine/edition';
+import { boardSize, type Edition } from '$lib/engine/edition';
+import { i18n, logText, type LogMsg } from '$lib/i18n/index.svelte';
 import { createBoard, isFleetDestroyed, markAt, type Board } from '$lib/engine/board';
 import { randomFleet, rotateWithKick, nudge, canPlace } from '$lib/engine/placement';
 import {
@@ -45,7 +46,7 @@ import {
 	type Weapons
 } from '$lib/engine/ruleset';
 import { mulberry32, type Rng } from '$lib/engine/rng';
-import { shipSpec } from '$lib/engine/fleet';
+import { fleetClasses } from '$lib/engine/fleet';
 import { cellsOf } from '$lib/engine/geometry';
 import {
 	moveShip,
@@ -71,26 +72,24 @@ import { speak } from '$lib/audio/speech';
 
 export type Phase = 'deploy' | 'battle' | 'result';
 
-/** Player-facing wording. The official voice lines are not reused. */
-function describe(event: GameEvent): string | null {
+/**
+ * What the log records for an event. Kept as data so it can be worded in any
+ * language; the official voice lines are not reused.
+ */
+function describe(event: GameEvent): LogMsg {
 	switch (event.type) {
 		case 'shot':
-			return `${event.side === 'player' ? 'Salvo' : 'Incoming'} ${coordLabel(
-				event.coord.row,
-				event.coord.col
-			)} — ${event.result === 'hit' ? 'HIT' : 'miss'}`;
+			return { k: 'shot', side: event.side, at: event.coord, hit: event.result === 'hit' };
 		case 'sunk':
-			return `${event.side === 'player' ? 'Our' : 'Enemy'} ${shipSpec(event.shipClass).name} is down (${event.shipClass})`;
+			return { k: 'sunk', side: event.side, cls: event.shipClass };
 		case 'scan':
-			return `Sonar ${coordLabel(event.coord.row, event.coord.col)} — ${
-				event.detected ? 'contact' : 'clear water'
-			}`;
+			return { k: 'scan', at: event.coord, detected: event.detected };
 		case 'repeat':
-			return `${coordLabel(event.coord.row, event.coord.col)} already resolved`;
+			return { k: 'repeat', at: event.coord };
 		case 'extraTurn':
-			return 'Extra turn granted';
+			return { k: 'extraTurn' };
 		case 'victory':
-			return event.side === 'player' ? 'Enemy fleet destroyed.' : 'Our fleet is lost.';
+			return { k: 'victory', winner: event.side };
 	}
 }
 
@@ -355,7 +354,7 @@ export class Game {
 		// The deck moved, so anything still parked on it moves too.
 		this.#reseatFlight(this.playerFlight, ship.class);
 
-		this.#say('player', `${shipSpec(ship.class).name} under way, one cell ${heading}`);
+		this.#say('player', { k: 'underWay', cls: ship.class, ahead: heading === 'ahead' });
 		play(this.#synth, 'launch');
 		this.pending = [];
 		this.#afterPlayerTurn([]);
@@ -403,9 +402,10 @@ export class Game {
 		this.rules = { ...this.rules, edition };
 		const size = boardSize(edition);
 		const placement = { noAdjacency: this.effective.noAdjacency };
-		this.playerFleet = randomFleet(size, this.#rng, placement);
+		const classes = fleetClasses(edition);
+		this.playerFleet = randomFleet(size, this.#rng, classes, placement);
 		this.playerBoard = createBoard(size, this.playerFleet);
-		this.cpuBoard = createBoard(size, randomFleet(size, this.#rng, placement));
+		this.cpuBoard = createBoard(size, randomFleet(size, this.#rng, classes, placement));
 		this.playerFlight = this.#boardFlight(this.playerBoard);
 		this.cpuFlight = this.#boardFlight(this.cpuBoard);
 		this.pending = [];
@@ -422,7 +422,7 @@ export class Game {
 		this.log = [];
 		this.resumed = false;
 		clearSnapshot();
-		this.#say('system', 'Deploy your fleet. R rotates, arrows move, Enter confirms.');
+		this.#say('system', { k: 'deploy' });
 	}
 
 	// ---- deployment -------------------------------------------------------
@@ -452,7 +452,7 @@ export class Game {
 
 	shuffleFleet() {
 		this.presetId = null;
-		this.playerFleet = randomFleet(this.size, this.#rng, {
+		this.playerFleet = randomFleet(this.size, this.#rng, fleetClasses(this.edition), {
 			noAdjacency: this.effective.noAdjacency
 		});
 		this.playerBoard = createBoard(this.size, this.playerFleet);
@@ -519,7 +519,7 @@ export class Game {
 		this.phase = 'battle';
 		this.turn = 'player';
 		this.pending = [];
-		this.#say('system', 'Fleet on station. Awaiting orders.');
+		this.#say('system', { k: 'onStation' });
 		this.#save();
 	}
 
@@ -547,7 +547,7 @@ export class Game {
 		const use: WeaponUse = { weapon: this.armed, at: coord, orientation: this.orientation };
 		const outcome = fireWeapon(this.cpuBoard, use, 'player', !this.effective.sunkSilence, this.markTurn);
 		if (!outcome.fired) {
-			this.#say('system', 'That launch point is not on the grid edge.');
+			this.#say('system', { k: 'notEdge' });
 			return;
 		}
 
@@ -571,12 +571,7 @@ export class Game {
 			const downed = fireAntiAir(this.cpuFlight, coord);
 			this.cpuFlight = [...this.cpuFlight];
 			this.armed = null;
-			this.#say(
-				'player',
-				downed
-					? `Anti-aircraft fire at ${coordLabel(coord.row, coord.col)} — enemy aircraft down`
-					: `Anti-aircraft fire at ${coordLabel(coord.row, coord.col)} — nothing there`
-			);
+			this.#say('player', { k: 'antiAir', at: { ...coord }, downed: downed !== null });
 			play(this.#synth, downed ? 'shootdown' : 'miss');
 			this.#afterPlayerTurn([]);
 			return;
@@ -584,7 +579,7 @@ export class Game {
 
 		const plane = this.flightReady[this.activePlane];
 		if (!plane) {
-			this.#say('system', 'No aircraft left to fly.');
+			this.#say('system', { k: 'noAircraft' });
 			return;
 		}
 
@@ -731,7 +726,7 @@ export class Game {
 		if (!moved) return false;
 
 		this.cpuBoard = { ...this.cpuBoard };
-		this.#say('cpu', 'A ship is under way');
+		this.#say('cpu', { k: 'cpuUnderWay' });
 		play(this.#synth, 'launch');
 		this.#afterCpuTurn([]);
 		return true;
@@ -781,10 +776,7 @@ export class Game {
 		if (owner === 'cpu') this.cpuFlight = [...flight];
 		else this.playerFlight = [...flight];
 
-		this.#say(
-			owner === 'cpu' ? 'player' : 'cpu',
-			`${lost} aircraft destroyed on deck`
-		);
+		this.#say(owner === 'cpu' ? 'player' : 'cpu', { k: 'deckLoss', count: lost });
 		play(this.#synth, 'shootdown');
 	}
 
@@ -816,16 +808,14 @@ export class Game {
 			const sound = soundFor(event);
 			if (sound) play(this.#synth, sound);
 
-			const text = describe(event);
-			if (text) {
-				this.#say(event.type === 'victory' ? 'system' : event.side, text);
-				speak(text, this.narrate);
-			}
+			const msg = describe(event);
+			this.#say(event.type === 'victory' ? 'system' : event.side, msg);
+			speak(logText(i18n.t, msg), this.narrate, i18n.t.speechLang);
 		}
 	}
 
-	#say(side: LogLine['side'], text: string) {
-		this.log = [...this.log, { id: this.#logId++, side, text }].slice(-120);
+	#say(side: LogLine['side'], msg: LogMsg) {
+		this.log = [...this.log, { id: this.#logId++, side, msg }].slice(-120);
 	}
 
 	/** Called after anything that changes the position, so a reload resumes it. */

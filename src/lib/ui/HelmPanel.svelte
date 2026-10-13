@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { FleetShip } from '$lib/engine/types';
 	import type { Heading } from '$lib/engine/movement';
-	import { shipSpec } from '$lib/engine/fleet';
+	import { hullCode } from '$lib/engine/fleet';
+	import { i18n } from '$lib/i18n/index.svelte';
 	import Panel from './Panel.svelte';
 
 	interface Props {
@@ -16,9 +17,9 @@
 	let { ships, selected, onSelect, onSteer, canSteer }: Props = $props();
 </script>
 
-<Panel title="Helm" tone="ally">
+<Panel title={i18n.t.helm.title} tone="ally">
 	{#if ships.length === 0}
-		<p class="none">Nothing can get under way. Damaged ships hold their position.</p>
+		<p class="none">{i18n.t.helm.none}</p>
 	{:else}
 		<ul>
 			{#each ships as ship, index (ship.class)}
@@ -28,8 +29,8 @@
 						class:on={selected === index}
 						onclick={() => onSelect(index)}
 					>
-						<span class="code">{ship.class}</span>
-						<span class="name">{shipSpec(ship.class).name}</span>
+						<span class="code">{hullCode(ship.class)}</span>
+						<span class="name">{i18n.t.ships[ship.class]}</span>
 					</button>
 				</li>
 			{/each}
@@ -37,13 +38,13 @@
 
 		<div class="steer">
 			<button type="button" disabled={!canSteer('astern')} onclick={() => onSteer('astern')}>
-				◀ Astern
+				{i18n.t.helm.astern}
 			</button>
 			<button type="button" disabled={!canSteer('ahead')} onclick={() => onSteer('ahead')}>
-				Ahead ▶
+				{i18n.t.helm.ahead}
 			</button>
 		</div>
-		<p class="note">Moving is the turn's action — you do not also fire.</p>
+		<p class="note">{i18n.t.helm.note}</p>
 	{/if}
 </Panel>
 

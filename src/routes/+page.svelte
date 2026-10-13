@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Game } from '$lib/state/game.svelte';
-	import { DIFFICULTY_NAME, type Difficulty } from '$lib/engine/ai';
 	import Grid from '$lib/ui/Grid.svelte';
 	import Panel from '$lib/ui/Panel.svelte';
 	import HullCodes from '$lib/ui/HullCodes.svelte';
@@ -14,8 +13,15 @@
 	import StatusLamps from '$lib/ui/StatusLamps.svelte';
 	import type { Coord } from '$lib/engine/types';
 	import { phoneticLabel, type Edition } from '$lib/engine/edition';
+	import { hullCode } from '$lib/engine/fleet';
+	import { i18n, LOCALES, DICTIONARIES, type Locale } from '$lib/i18n/index.svelte';
 
 	const game = Game.resume();
+	const t = $derived(i18n.t);
+
+	$effect(() => {
+		document.documentElement.lang = i18n.locale;
+	});
 
 	/** Narrow screens show one board at a time; wide ones show both. */
 	let boardTab = $state<'enemy' | 'fleet'>('enemy');
@@ -108,16 +114,14 @@
 		<div class="chips">
 			<label
 				class="chip select"
-				title={game.phase === 'deploy'
-					? 'CLASSIC is 10×10; DELUXE is 14×10 with the advanced weapons.'
-					: 'The edition sets the board size, so it is fixed once a battle starts. Press NEW to change it.'}
+				title={game.phase === 'deploy' ? t.header.editionHintDeploy : t.header.editionHintLocked}
 			>
-				EDITION
+				{t.header.edition}
 				<!-- One-way on purpose: a two-way binding wrote `edition` behind
 				     reset()'s back, leaving the board size and the boards out of step. -->
 				<select
 					value={game.edition}
-					aria-label="Edition"
+					aria-label={t.header.editionAria}
 					disabled={game.phase !== 'deploy'}
 					onchange={(e) => game.reset(e.currentTarget.value as Edition)}
 				>
@@ -126,10 +130,22 @@
 				</select>
 			</label>
 			<label class="chip select">
-				CPU
-				<select bind:value={game.difficulty} aria-label="CPU difficulty">
+				{t.header.cpu}
+				<select bind:value={game.difficulty} aria-label={t.header.cpuAria}>
 					{#each [1, 2, 3] as const as level (level)}
-						<option value={level}>{DIFFICULTY_NAME[level]}</option>
+						<option value={level}>{t.difficulty[level]}</option>
+					{/each}
+				</select>
+			</label>
+			<label class="chip select">
+				{t.header.lang}
+				<select
+					value={i18n.locale}
+					aria-label={t.header.langAria}
+					onchange={(e) => i18n.set(e.currentTarget.value as Locale)}
+				>
+					{#each LOCALES as locale (locale)}
+						<option value={locale}>{DICTIONARIES[locale].langName}</option>
 					{/each}
 				</select>
 			</label>
@@ -138,56 +154,64 @@
 				type="button"
 				aria-pressed={game.muted}
 				onclick={() => game.toggleMute()}
-			>{game.muted ? 'MUTED' : 'SOUND'}</button>
-			<button class="chip toggle" type="button" onclick={() => game.reset()}>NEW</button>
+			>{game.muted ? t.header.muted : t.header.sound}</button>
+			<button class="chip toggle" type="button" onclick={() => game.reset()}>{t.header.newGame}</button>
 			<StatusLamps lamp={game.lamp} />
 		</div>
 	</header>
 
 	{#if game.resumed && game.phase === 'battle'}
-		<p class="hint resumed">Picked up where you left off.</p>
+		<p class="hint resumed">{t.status.resumed}</p>
 	{/if}
+
+	{#snippet keys(list: readonly (readonly [string, string])[])}
+		{#each list as [key, action], i (key)}
+			{i > 0 ? ' ' : ''}<kbd>{key}</kbd> {action}{i < list.length - 1 ? ',' : '.'}
+		{/each}
+	{/snippet}
 
 	{#if game.phase === 'deploy'}
 		<p class="hint">
-			Deploying — <kbd>Tab</kbd> selects a ship, <kbd>R</kbd> rotates,
-			<kbd>Shift</kbd>+<kbd>R</kbd> reshuffles, arrows move, <kbd>Enter</kbd> commits.
-			Selected: <strong>{game.playerFleet[game.selected]?.class}</strong>
+			{t.status.deployLead}
+			{@render keys(t.status.deployKeys)}
+			{t.status.selected}
+			<strong>{game.playerFleet[game.selected] ? hullCode(game.playerFleet[game.selected].class) : ''}</strong>
 		</p>
 	{:else if game.phase === 'battle'}
 		<p class="hint">
-			{game.turn === 'player' ? 'Awaiting orders.' : 'Enemy is firing…'}
+			{game.turn === 'player' ? t.status.awaiting : t.status.enemyFiring}
 			{#if game.allowance > 1}
-				Salvo: call {game.allowance} targets ({game.pending.length} called).
+				{t.status.salvo(game.allowance, game.pending.length)}
 			{/if}
-			Reticle <strong>{phoneticLabel(game.cursor.row, game.cursor.col)}</strong>.
+			{t.status.reticle} <strong>{phoneticLabel(game.cursor.row, game.cursor.col)}</strong>.
 			{#if game.armed}
-				Aiming <strong>{game.armed}</strong> — <kbd>Esc</kbd> stands down.
+				{t.status.aiming} <strong>{t.weapons.names[game.armed]}</strong> — <kbd>Esc</kbd>
+				{t.status.standDown}
 			{:else if game.weaponsOnOffer.length}
-				<kbd>1</kbd>–<kbd>{game.weaponsOnOffer.length}</kbd> arms a weapon.
+				<kbd>1</kbd>–<kbd>{game.weaponsOnOffer.length}</kbd> {t.status.armsWeapon}
 			{/if}
-			Arrows move it, <kbd>Enter</kbd> fires, <kbd>M</kbd> mutes.
+			{@render keys(t.status.battleKeys)}
 		</p>
 	{:else}
 		<p class="hint result">
-			{game.winner === 'player' ? 'Enemy fleet destroyed.' : 'Our fleet is lost.'}
-			<button type="button" onclick={() => game.reset()}>New game</button>
+			{game.winner === 'player' ? t.status.won : t.status.lost}
+			<button type="button" onclick={() => game.reset()}>{t.status.playAgain}</button>
 		</p>
 	{/if}
 
-	<div class="board-tabs" role="tablist" aria-label="Boards">
+	<div class="board-tabs" role="tablist" aria-label={t.boards.tabsAria}>
 		<button
 			type="button"
 			role="tab"
 			aria-selected={boardTab === 'enemy'}
 			class:on={boardTab === 'enemy'}
-			onclick={() => (boardTab = 'enemy')}>Enemy waters</button>
+			onclick={() => (boardTab = 'enemy')}>{t.boards.enemy}</button>
 		<button
 			type="button"
 			role="tab"
 			aria-selected={boardTab === 'fleet'}
 			class:on={boardTab === 'fleet'}
-			onclick={() => (boardTab = 'fleet')}>Your fleet</button>
+			onclick={() => (boardTab = 'fleet')}>{t.boards.own}</button>
 	</div>
 
 	<div class="boards" data-tab={boardTab}>
@@ -196,7 +220,7 @@
 			board={game.cpuBoard}
 			tone="enemy"
 			revealShips={false}
-			label="Enemy waters"
+			label={t.boards.enemy}
 			cursor={game.phase === 'battle' ? game.cursor : null}
 			pending={game.pending}
 			aim={game.armed === 'ANTI_AIR' ? [] : game.aimPreview}
@@ -215,7 +239,7 @@
 			board={game.playerBoard}
 			tone="ally"
 			revealShips={true}
-			label="Your fleet"
+			label={t.boards.own}
 			highlight={game.phase === 'deploy' ? game.playerFleet[game.selected]?.class : null}
 			aircraft={game.playerFlight.filter((p) => p.alive && !p.at).map((p) => p.home)}
 			targeted={game.aimingAt === 'own'}
@@ -231,9 +255,9 @@
 	</div>
 
 	<div class="panels">
-		<FleetStatus board={game.cpuBoard} title="Enemy fleet" tone="enemy" />
-		<FleetStatus board={game.playerBoard} title="Own fleet" tone="ally" />
-		<HullCodes board={game.playerBoard} />
+		<FleetStatus board={game.cpuBoard} title={t.fleet.enemyTitle} tone="enemy" />
+		<FleetStatus board={game.playerBoard} title={t.fleet.ownTitle} tone="ally" />
+		<HullCodes board={game.playerBoard} edition={game.edition} />
 		{#if game.underWay.length > 0 || (game.effective.mobileFleet && game.phase === 'battle')}
 			<HelmPanel
 				ships={game.underWay}
@@ -314,11 +338,14 @@
 		}
 	}
 
+	/* Five controls plus the lamps: wrap rather than push the page sideways. */
 	.chips {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.5rem;
 		margin-left: auto;
+		min-width: 0;
 	}
 
 	.chip {
@@ -327,6 +354,7 @@
 		font-size: 0.62rem;
 		letter-spacing: 0.14em;
 		color: var(--text-dim);
+		white-space: nowrap;
 	}
 
 	.hint {

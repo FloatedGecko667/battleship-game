@@ -31,7 +31,8 @@
 
 	--cell: 30px;
 	--font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SFMono-Regular',
-		Menlo, monospace;
+		Menlo, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', Meiryo,
+		monospace;
 }
 
 @media (max-width: 900px) {
