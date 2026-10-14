@@ -138,7 +138,7 @@
 		background: transparent;
 		color: var(--text);
 		font: inherit;
-		font-size: 0.72rem;
+		font-size: 0.75rem;
 		padding: 0.2rem 0.4rem;
 		cursor: pointer;
 		text-align: left;
@@ -153,7 +153,7 @@
 	.key {
 		width: 1ch;
 		color: var(--text-dim);
-		font-size: 0.62rem;
+		font-size: 0.75rem;
 	}
 
 	button.armed .key {
@@ -182,7 +182,7 @@
 	.blurb {
 		display: block;
 		padding: 0.1rem 0 0.25rem 0.4rem;
-		font-size: 0.62rem;
+		font-size: 0.75rem;
 		color: var(--text-dim);
 	}
 
@@ -200,7 +200,7 @@
 	.guidance,
 	.none {
 		margin: 0.4rem 0 0;
-		font-size: 0.64rem;
+		font-size: 0.75rem;
 		color: var(--text-dim);
 		line-height: 1.5;
 	}
@@ -225,7 +225,7 @@
 		border: 1px solid var(--rule-faint);
 		padding: 0 0.25rem;
 		font: inherit;
-		font-size: 0.62rem;
+		font-size: 0.75rem;
 		color: var(--text);
 	}
 </style>

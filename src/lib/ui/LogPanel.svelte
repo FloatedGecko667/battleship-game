@@ -23,7 +23,12 @@
 	$effect(() => {
 		// Touch `lines` so the effect reruns, then pin the view to the newest entry.
 		lines.length;
-		if (scroller) scroller.scrollTop = scroller.scrollHeight;
+		// Reading scrollHeight forces layout, so do it after the frame rather
+		// than in the middle of the render that added the line.
+		const frame = requestAnimationFrame(() => {
+			if (scroller) scroller.scrollTop = scroller.scrollHeight;
+		});
+		return () => cancelAnimationFrame(frame);
 	});
 </script>
 
@@ -42,7 +47,7 @@
 	.scroll {
 		height: 9rem;
 		overflow-y: auto;
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 		line-height: 1.5;
 	}
 

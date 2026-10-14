@@ -603,3 +603,31 @@ p.11–17（Advanced Weapons 各種）、p.18–27（配置フォーメーショ
 > ゲームのルール自体は著作権の保護対象外のため実装に問題はない。
 > "BATTLESHIP" / Hasbro / Universal の名称・ロゴ・映画意匠、公式の固有艦名、
 > および音声セリフの文言は使用しない。
+
+---
+
+## 付録: フェーズ2の決定記録
+
+### CLASSIC の艦隊と `DD2`
+CLASSIC は1990年版の艦隊（`CV`5・`BB`4・`CA`3・`SS`3・`DD`2）、DELUXE は公式ルールブック準拠（`CV`/`BB`/`DD`3/`DE`/`PB`）。
+クラスが長さを決める設計（`shipLength(cls)` → `cellsOf`）を保つため、CLASSIC の2マス駆逐艦は内部キー `DD2` とし、
+表示コードだけ `DD` にする（`fleet.ts` の `ShipSpec.code`）。AI の視界（`TargetView.fleet`）は相手の艦種一覧を持つが位置は持たない。
+
+### 多言語化（日本語 / 英語）
+`src/lib/i18n/` の型付き辞書。`en.ts` が正本で、`ja.ts` は `Messages` 型に縛られるためキー欠落は `svelte-check` で失敗する。
+言語は 保存値 → `navigator.languages` → 英語 の順で決め、ヘッダーの LANG で切替・記憶する。
+戦闘ログは文字列でなく `LogMsg`（データ）として保存し、言語を切り替えると過去ログも訳し直される。
+艦種コード・座標・NATO 名・キー名は訳さない。フォントは CJK のシステムフォントをフォールバックに足しただけでアセットは増えない。
+
+### Lighthouse（ローカルの本番ビルド, 2026-10-14）
+| カテゴリ | 初回 | 修正後 |
+|---|---|---|
+| Performance | 97 | 98 |
+| Accessibility | 100 | 100 |
+| Best Practices | 93 | 100 |
+| SEO | 100 | 100 |
+
+修正: `favicon.ico` の 404（`<link rel="icon">` を追加）、12px 未満の文字（全体で 0.75rem 以上に）、
+ログ自動スクロールの強制リフローを描画後（`requestAnimationFrame`）に移動。
+残る forced reflow は Svelte ランタイム内の初回レイアウトで、こちらのコードではない。
+併せて、DELUXE の 14 列が 375px 幅で 386px になり横にはみ出していたのを、マスの大きさを画面幅に合わせて縮めて解消した。

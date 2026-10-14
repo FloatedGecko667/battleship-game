@@ -38,7 +38,7 @@
 <style>
 	.stat {
 		margin: 0 0 0.2rem;
-		font-size: 0.72rem;
+		font-size: 0.75rem;
 	}
 
 	.big {
@@ -67,7 +67,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 	}
 
 	.code {

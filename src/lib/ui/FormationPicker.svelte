@@ -69,7 +69,7 @@
 		align-items: center;
 		gap: 0.5rem;
 		margin-bottom: 0.5rem;
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 	}
 
 	input {
@@ -86,7 +86,7 @@
 		background: transparent;
 		color: var(--ally);
 		font: inherit;
-		font-size: 0.68rem;
+		font-size: 0.75rem;
 		padding: 0.15rem 0.5rem;
 		cursor: pointer;
 	}
@@ -112,7 +112,7 @@
 	}
 
 	.code {
-		font-size: 0.55rem;
+		font-size: 0.75rem;
 		letter-spacing: 0.08em;
 		color: var(--text-dim);
 	}

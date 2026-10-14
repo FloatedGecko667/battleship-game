@@ -22,7 +22,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.35rem;
-		font-size: 0.62rem;
+		font-size: 0.75rem;
 		letter-spacing: 0.16em;
 		color: var(--text-dim);
 	}

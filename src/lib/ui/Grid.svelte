@@ -162,7 +162,7 @@
 
 	.label {
 		margin: 0 0 0.4rem;
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 		letter-spacing: 0.2em;
 		text-transform: uppercase;
 		color: var(--neon);
@@ -178,9 +178,13 @@
 	}
 
 	.frame {
+		/* The cell size, shrunk if need be so the whole board fits the screen:
+		   14 files at 26px is wider than a phone, and 3.4rem is the page
+		   padding plus the rank gutter. */
+		--c: min(var(--cell), calc((100vw - 3.4rem) / var(--cols)));
 		display: grid;
-		grid-template-columns: 1.4rem repeat(var(--cols), var(--cell));
-		grid-template-rows: 1rem repeat(var(--rows), var(--cell));
+		grid-template-columns: 1.4rem repeat(var(--cols), var(--c));
+		grid-template-rows: 1rem repeat(var(--rows), var(--c));
 	}
 
 	.file-head,
@@ -189,21 +193,21 @@
 		align-items: center;
 		justify-content: center;
 		gap: 0.35rem;
-		font-size: 0.6rem;
+		font-size: 0.75rem;
 		color: var(--text-dim);
 	}
 
 	/* The NATO rank name only earns its gutter when there is room for it. */
 	.phonetic {
 		display: none;
-		font-size: 0.52rem;
+		font-size: 0.75rem;
 		letter-spacing: 0.08em;
 	}
 
 	.board {
 		display: grid;
-		grid-template-columns: repeat(var(--cols), var(--cell));
-		grid-template-rows: repeat(var(--rows), var(--cell));
+		grid-template-columns: repeat(var(--cols), var(--c));
+		grid-template-rows: repeat(var(--rows), var(--c));
 		border-top: 1px solid var(--rule-dim);
 		border-left: 1px solid var(--rule-dim);
 	}
@@ -215,7 +219,7 @@
 		margin: 0;
 		padding: 0;
 		font: inherit;
-		font-size: calc(var(--cell) * 0.62);
+		font-size: calc(var(--c) * 0.62);
 		line-height: 1;
 		background: transparent;
 		border: 0;
@@ -269,14 +273,14 @@
 		align-self: start;
 		justify-self: end;
 		padding: 1px 2px 0 0;
-		font-size: calc(var(--cell) * 0.36);
+		font-size: calc(var(--c) * 0.36);
 		color: var(--code);
 		text-shadow: 0 0 4px var(--neon-glow);
 	}
 
 	.queued {
 		grid-area: 1 / 1;
-		font-size: calc(var(--cell) * 0.55);
+		font-size: calc(var(--c) * 0.55);
 		color: var(--neon);
 		text-shadow: 0 0 5px var(--neon-glow);
 	}
@@ -288,7 +292,7 @@
 	.pin,
 	.cross {
 		grid-area: 1 / 1;
-		font-size: calc(var(--cell) * 0.5);
+		font-size: calc(var(--c) * 0.5);
 		line-height: 1;
 	}
 
@@ -299,7 +303,7 @@
 	/* Official blue SCAN pegs. Drawn small so it never reads as a hull fill. */
 	.pin.scan {
 		color: var(--ally);
-		font-size: calc(var(--cell) * 0.34);
+		font-size: calc(var(--c) * 0.34);
 		text-shadow: 0 0 5px var(--ally-glow);
 	}
 
@@ -334,7 +338,7 @@
 	}
 
 	.cross {
-		font-size: calc(var(--cell) * 0.72);
+		font-size: calc(var(--c) * 0.72);
 	}
 
 	/* Hull codes ride above the fill and must not eat the cell's clicks. */
@@ -342,7 +346,7 @@
 		display: grid;
 		place-items: center;
 		pointer-events: none;
-		font-size: calc(var(--cell) * 0.42);
+		font-size: calc(var(--c) * 0.42);
 		font-weight: 700;
 		letter-spacing: 0.02em;
 		color: var(--code);
@@ -355,7 +359,7 @@
 	}
 	@media (min-width: 1200px) {
 		.frame {
-			grid-template-columns: 4.4rem repeat(var(--cols), var(--cell));
+			grid-template-columns: 4.4rem repeat(var(--cols), var(--c));
 		}
 
 		.rank-head {

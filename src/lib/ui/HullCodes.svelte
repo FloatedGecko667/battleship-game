@@ -45,7 +45,7 @@
 	table {
 		width: 100%;
 		border-collapse: collapse;
-		font-size: 0.72rem;
+		font-size: 0.75rem;
 	}
 
 	th {

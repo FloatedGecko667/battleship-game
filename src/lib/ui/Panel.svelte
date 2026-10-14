@@ -40,7 +40,7 @@
 		margin: 0;
 		padding: 0 0.5rem;
 		background: var(--bg-panel);
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 		font-weight: 700;
 		letter-spacing: 0.18em;
 		text-transform: uppercase;

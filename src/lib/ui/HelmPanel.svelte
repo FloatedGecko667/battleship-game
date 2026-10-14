@@ -69,7 +69,7 @@
 		background: transparent;
 		color: var(--text);
 		font: inherit;
-		font-size: 0.72rem;
+		font-size: 0.75rem;
 		padding: 0.2rem 0.4rem;
 		cursor: pointer;
 		text-align: left;
@@ -93,7 +93,7 @@
 	.fuel {
 		margin-left: auto;
 		color: var(--text-dim);
-		font-size: 0.62rem;
+		font-size: 0.75rem;
 	}
 
 	.steer {
@@ -108,7 +108,7 @@
 	.note,
 	.none {
 		margin: 0.45rem 0 0;
-		font-size: 0.62rem;
+		font-size: 0.75rem;
 		color: var(--text-dim);
 	}
 </style>

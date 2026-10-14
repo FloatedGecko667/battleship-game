@@ -351,7 +351,7 @@
 	.chip {
 		border: 1px solid var(--rule-faint);
 		padding: 0.1rem 0.45rem;
-		font-size: 0.62rem;
+		font-size: 0.75rem;
 		letter-spacing: 0.14em;
 		color: var(--text-dim);
 		white-space: nowrap;
@@ -359,7 +359,7 @@
 
 	.hint {
 		margin: 0 0 0.9rem;
-		font-size: 0.72rem;
+		font-size: 0.75rem;
 		color: var(--text-dim);
 	}
 
@@ -376,7 +376,7 @@
 		border: 1px solid var(--rule-faint);
 		padding: 0 0.25rem;
 		font: inherit;
-		font-size: 0.68rem;
+		font-size: 0.75rem;
 		color: var(--text);
 	}
 
@@ -391,7 +391,7 @@
 		border: 0;
 		color: var(--ally);
 		font: inherit;
-		font-size: 0.62rem;
+		font-size: 0.75rem;
 		letter-spacing: 0.14em;
 		cursor: pointer;
 	}
@@ -418,7 +418,7 @@
 		background: transparent;
 		color: var(--ally);
 		font: inherit;
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 		letter-spacing: 0.12em;
 		padding: 0.2rem 0.6rem;
 		cursor: pointer;
@@ -437,7 +437,7 @@
 		background: transparent;
 		color: var(--text-dim);
 		font: inherit;
-		font-size: 0.68rem;
+		font-size: 0.75rem;
 		letter-spacing: 0.14em;
 		text-transform: uppercase;
 		padding: 0.35rem;

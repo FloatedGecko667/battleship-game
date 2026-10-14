@@ -107,7 +107,7 @@
 
 	legend {
 		padding: 0;
-		font-size: 0.62rem;
+		font-size: 0.75rem;
 		letter-spacing: 0.14em;
 		text-transform: uppercase;
 		color: var(--text-dim);
@@ -117,7 +117,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
-		font-size: 0.72rem;
+		font-size: 0.75rem;
 		cursor: pointer;
 	}
 
@@ -138,7 +138,7 @@
 		align-items: center;
 		gap: 0.4rem;
 		cursor: pointer;
-		font-size: 0.72rem;
+		font-size: 0.75rem;
 	}
 
 	input:disabled + .name {
@@ -157,13 +157,13 @@
 	.blurb {
 		display: block;
 		padding-left: 1.35rem;
-		font-size: 0.64rem;
+		font-size: 0.75rem;
 		color: var(--text-dim);
 	}
 
 	.locked {
 		margin: 0.5rem 0 0;
-		font-size: 0.64rem;
+		font-size: 0.75rem;
 		color: var(--text-dim);
 	}
 </style>
